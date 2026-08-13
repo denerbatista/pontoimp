@@ -1,5 +1,5 @@
 /* PontoImp — service worker: shell offline + notificações persistentes */
-const CACHE = 'pontoimp-v8';
+const CACHE = 'pontoimp-v9';
 const CFG = 'pontoimp-cfg'; // sobrevive à troca de versão: guarda a URL do serviço de push
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
