@@ -168,6 +168,33 @@ const server = http.createServer((req,res)=>{
 
       check('campo da URL de push aparece nos ajustes',
         (await page.locator('#c_push').count())===1);
+
+      // quem entra com sessão salva não passa pelo login, então o app tem que
+      // pedir a permissão sozinho ao abrir — era esse o buraco
+      check('enterApp prepara os avisos', await page.evaluate(()=>
+        /prepararAvisos\(\)/.test(enterApp.toString())));
+      check('convite aparece quando falta permissão', await page.evaluate(async()=>{
+        Object.defineProperty(Notification,'permission',{value:'default',configurable:true});
+        S.pushInscrito=false;
+        mostrarConvite();
+        const b=document.querySelector('#convite');
+        return !b.classList.contains('hidden') && /Permitir/.test(b.textContent);
+      }));
+      check('convite some com "Agora não"', await page.evaluate(()=>{
+        esconderConvite();
+        return document.querySelector('#convite').classList.contains('hidden');
+      }));
+      check('com permissão dada o convite vira convite de push', await page.evaluate(()=>{
+        Object.defineProperty(Notification,'permission',{value:'granted',configurable:true});
+        S.pushInscrito=false;
+        mostrarConvite();
+        return /push/i.test(document.querySelector('#convite').textContent);
+      }));
+      check('com tudo ligado não há convite', await page.evaluate(()=>{
+        S.pushInscrito=true;
+        mostrarConvite();
+        return document.querySelector('#convite').classList.contains('hidden');
+      }));
     } else {
       check('tela de folga no fim de semana', (await page.textContent('body')).includes('folga'));
     }

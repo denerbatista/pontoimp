@@ -168,6 +168,7 @@
     <button class="iconBtn" onclick="sincronizar(false)" title="Atualizar do Secullum agora">⟳</button>
     <button class="iconBtn" onclick="go(view==='cfg'?'hoje':'cfg')" title="Ajustes">⚙️</button>
   </div>
+  <div id="convite" class="cards hidden"></div>
   <div id="views" class="cards"></div>
 </section>
 
@@ -1014,7 +1015,46 @@ function mostrarLogin(){ $('#app').classList.add('hidden'); $('#login').classLis
   $('#l_tipo').value=S.auth.tipo||'0'; }
 function voltarLogin(){ S.auth.token=''; save(); if(tickTimer)clearInterval(tickTimer); mostrarLogin(); }
 function enterApp(){ $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
-  setSync(S.ultimaSyncMs?'ok':'—'); render(); startTick(); sincronizar(false); }
+  setSync(S.ultimaSyncMs?'ok':'—'); render(); startTick(); sincronizar(false); prepararAvisos(); }
+
+/* Ao abrir o app já deixamos os avisos prontos, sem esperar o usuário ir nos
+   ajustes. Quem entra com sessão salva nunca passava pelo login, então nunca
+   era perguntado. O navegador pode engolir o pedido automático (o Chrome
+   silencia quem pede sem gesto), por isso ainda mostramos o convite. */
+async function prepararAvisos(){
+  if(porQueSemNotificacao()){ mostrarConvite(); return; }
+  if(Notification.permission==='default'){
+    try{ await Notification.requestPermission(); }catch(e){}
+  }
+  if(Notification.permission!=='granted'){ mostrarConvite(); return; }
+  if(S.pushInscrito) enviarAgenda(null,true);        // renova a agenda a cada abertura
+  else mostrarConvite();
+  atualizarDiagNotif();
+}
+
+/* Faixa no topo quando falta algo pros avisos funcionarem. O botão importa:
+   dá o gesto do usuário, que é o que os navegadores realmente respeitam. */
+function mostrarConvite(){
+  const box=$('#convite'); if(!box) return;
+  const motivo=porQueSemNotificacao();
+  let txt, rotulo, acao;
+  if(motivo){ txt=motivo; rotulo='Instalar'; acao='instalarApp()'; }
+  else if(Notification.permission!=='granted'){
+    txt='Libere as notificações pra eu avisar na hora de bater o ponto.';
+    rotulo='Permitir'; acao='pedirPermissao().then(esconderConvite)';
+  } else if(!S.pushInscrito){
+    txt='Ligue o push pra receber os avisos mesmo com o app fechado.';
+    rotulo='Ligar'; acao='assinarPush().then(esconderConvite)';
+  } else { esconderConvite(); return; }
+  box.innerHTML=`<div class="card" style="border-color:var(--warn)">
+    <div class="switchRow"><div class="tx"><b>🔔 Avisos desligados</b><small>${txt}</small></div></div>
+    <div class="row2" style="margin-top:10px">
+      <button class="btn sm" style="width:100%" onclick="${acao}">${rotulo}</button>
+      <button class="btn ghost sm" style="width:100%" onclick="esconderConvite()">Agora não</button>
+    </div></div>`;
+  box.classList.remove('hidden');
+}
+function esconderConvite(){ const b=$('#convite'); if(b) b.classList.add('hidden'); }
 $('#l_lembrar').onclick=(e)=>e.currentTarget.classList.toggle('on');
 (async function boot(){
   if(S.auth.token){ enterApp(); }
