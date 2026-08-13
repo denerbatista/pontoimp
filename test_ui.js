@@ -101,6 +101,36 @@ const server = http.createServer((req,res)=>{
       await page.click('button[title="Ajustes"]');
       await page.waitForTimeout(200);
       check('toggle "Alarme de verdade" nos ajustes', (await page.textContent('body')).includes('Alarme de verdade'));
+
+      // diagnóstico de notificação/instalação: os botões têm que explicar, nunca ficar mudos
+      check('diagnóstico de notificação aparece nos ajustes',
+        (await page.locator('#diagNotif').count())===1
+        && ((await page.textContent('#diagNotif'))||'').trim().length>10);
+
+      const semPermissao = await page.evaluate(()=>{
+        // simula permissão já negada: o botão precisa dizer o motivo, não virar no-op
+        Object.defineProperty(Notification,'permission',{value:'denied',configurable:true});
+        return porQueSemNotificacao();
+      });
+      check('permissão negada explica o motivo', !!semPermissao && /bloquead/i.test(semPermissao));
+
+      await page.evaluate(()=>pedirPermissao());
+      await page.waitForTimeout(150);
+      check('botão de notificação avisa quando está bloqueado',
+        (await page.locator('#toast').textContent()||'').length>10);
+
+      const iosSemInstalar = await page.evaluate(()=>{
+        Object.defineProperty(Notification,'permission',{value:'default',configurable:true});
+        const orig=window.ehIOS; window.ehIOS=()=>true;      // finge iPhone em aba do Safari
+        const m=porQueSemNotificacao(); window.ehIOS=orig; return m;
+      });
+      check('iPhone sem instalar manda instalar antes',
+        !!iosSemInstalar && /tela inicial/i.test(iosSemInstalar));
+
+      await page.evaluate(()=>{ window.deferredPrompt=null; instalarApp(); });
+      await page.waitForTimeout(150);
+      check('botão instalar explica o caminho',
+        /instal|tela inicial|menu/i.test(await page.locator('#toast').textContent()||''));
     } else {
       check('tela de folga no fim de semana', (await page.textContent('body')).includes('folga'));
     }
