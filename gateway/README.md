@@ -24,19 +24,22 @@ atrasado — avisar "saia agora" 20 minutos depois da hora só atrapalha.
 
 ## Deploy
 
+Um comando só. Ele faz o login, cria o KV, gera as chaves e publica —
+e pode ser rodado de novo sem estragar nada, porque pula o que já está pronto:
+
 ```bash
 cd gateway
-npm install -g wrangler          # se ainda não tiver
+./deploy.sh
+```
 
-# 1. namespace do KV — cole o id devolvido no wrangler.toml
-npx wrangler kv namespace create PUSH
+Se preferir passo a passo:
 
-# 2. par de chaves VAPID
+```bash
+npx wrangler login
+npx wrangler kv namespace create PUSH   # cole o id no wrangler.toml
 node gerar-chaves.mjs
 npx wrangler secret put VAPID_PUBLICA
 npx wrangler secret put VAPID_PRIVADA
-
-# 3. sobe
 npx wrangler deploy
 ```
 

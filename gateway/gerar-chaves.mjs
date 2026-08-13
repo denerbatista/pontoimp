@@ -12,6 +12,12 @@ const b64url = (b) => {
 const publica = b64url(await crypto.subtle.exportKey('raw', par.publicKey));
 const privada = JSON.stringify(await crypto.subtle.exportKey('jwk', par.privateKey));
 
+// --json: saída pro deploy.sh consumir sem passar a privada por arquivo
+if(process.argv.includes('--json')){
+  console.log(JSON.stringify({ publica, privada }));
+  process.exit(0);
+}
+
 console.log('\nVAPID_PUBLICA (pode ser pública — o app busca ela em /push/chave):\n');
 console.log(publica);
 console.log('\nVAPID_PRIVADA (SEGREDO — só no wrangler secret, nunca commitada):\n');
