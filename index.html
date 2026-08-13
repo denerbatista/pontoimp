@@ -3,7 +3,14 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0f1220" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <title>PontoImp</title>
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="icon-192.png" />
+<link rel="apple-touch-icon" href="icon-192.png" />
 <style>
   :root{
     --bg:#0f1220; --bg2:#151a2e; --card:#1b2138; --card2:#212a47;
@@ -20,7 +27,6 @@
     color:var(--txt);font:15px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,sans-serif;
     -webkit-font-smoothing:antialiased;
   }
-  a{color:var(--pri);text-decoration:none}
   button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
   .hidden{display:none!important}
   .muted{color:var(--mut)}
@@ -43,7 +49,7 @@
   .field{margin-bottom:13px}
   .field label{display:block;font-size:12px;color:var(--mut);margin:0 0 6px 2px;font-weight:600}
   .field input,.field select{width:100%;padding:12px 13px;background:var(--bg2);border:1px solid var(--line);
-    border-radius:12px;color:var(--txt);outline:none;transition:.15s}
+    border-radius:12px;color:var(--txt);outline:none;transition:.15s;color-scheme:dark}
   .field input:focus,.field select:focus{border-color:var(--pri);box-shadow:var(--ring)}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .btn{width:100%;padding:13px;border-radius:12px;background:var(--grad);color:#fff;font-weight:700;
@@ -51,52 +57,31 @@
   .btn:hover{filter:brightness(1.08);transform:translateY(-1px)}
   .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt);box-shadow:none;font-weight:600}
   .btn.sm{width:auto;padding:9px 15px;font-size:13px}
-  .btn.ok{background:linear-gradient(135deg,#37d39b,#27b58a);box-shadow:0 10px 24px rgba(55,211,155,.35)}
-  .divider{display:flex;align-items:center;gap:10px;color:var(--mut2);font-size:12px;margin:16px 0}
-  .divider::before,.divider::after{content:"";height:1px;background:var(--line);flex:1}
 
-  /* ---------- APP SHELL ---------- */
-  #app{min-height:100%;display:grid;grid-template-columns:240px 1fr}
-  aside{background:linear-gradient(180deg,var(--bg2),transparent);border-right:1px solid var(--line);
-    padding:20px 14px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh}
-  aside .brand{justify-content:flex-start;margin:4px 8px 18px}
-  aside .brand h1{font-size:20px}
-  .nav{display:flex;flex-direction:column;gap:2px}
-  .nav a{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:11px;color:var(--mut);font-weight:600}
-  .nav a .ic{width:20px;text-align:center;opacity:.9}
-  .nav a:hover{background:var(--card);color:var(--txt)}
-  .nav a.active{background:var(--card2);color:var(--txt);box-shadow:inset 3px 0 0 var(--pri)}
-  .who{margin-top:auto;padding:12px;background:var(--card);border:1px solid var(--line);border-radius:14px}
-  .who .nm{font-weight:700;font-size:14px}
-  .who .em{color:var(--mut);font-size:12px}
-  main{padding:26px 30px;max-width:1100px}
-  .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;gap:14px;flex-wrap:wrap}
-  .top h2{margin:0;font-size:22px;letter-spacing:-.4px}
-  .top .date{color:var(--mut);font-size:13px}
-  .cards{display:grid;gap:16px}
-  .grid2{grid-template-columns:1.4fr 1fr}
-  .grid3{grid-template-columns:repeat(3,1fr)}
-  @media(max-width:900px){#app{grid-template-columns:1fr}aside{position:fixed;z-index:40;transform:translateX(-100%);transition:.2s;width:240px}
-    aside.open{transform:none}.grid2,.grid3{grid-template-columns:1fr}main{padding:18px}.menuBtn{display:grid!important}}
-  .menuBtn{display:none;place-items:center;width:40px;height:40px;border-radius:11px;background:var(--card);border:1px solid var(--line)}
+  /* ---------- APP ---------- */
+  #app{min-height:100%;max-width:640px;margin:0 auto;padding:16px 16px 60px}
+  .hd{display:flex;align-items:center;gap:10px;margin:4px 0 16px}
+  .hd .brand{justify-content:flex-start;margin:0;flex:1}
+  .hd .brand h1{font-size:20px}
+  .hd .brand .logo{width:38px;height:38px;border-radius:11px}
+  .iconBtn{width:40px;height:40px;border-radius:11px;background:var(--card);border:1px solid var(--line);
+    display:grid;place-items:center;font-size:17px;flex:none}
+  .cards{display:grid;gap:14px}
   .card{background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line);
     border-radius:var(--r);box-shadow:var(--sh);padding:20px}
-  .card h3{margin:0 0 14px;font-size:14px;color:var(--mut);text-transform:uppercase;letter-spacing:.6px;font-weight:700}
+  .card h3{margin:0 0 14px;font-size:13px;color:var(--mut);text-transform:uppercase;letter-spacing:.6px;font-weight:700}
 
-  /* ---------- RELOGIO / HOJE ---------- */
-  .clock{text-align:center;padding:6px 0 2px}
-  .clock .t{font-size:52px;font-weight:800;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+  .clock{text-align:center;padding:2px 0}
+  .clock .t{font-size:50px;font-weight:800;letter-spacing:-1px;font-variant-numeric:tabular-nums}
   .clock .d{color:var(--mut);font-size:13px;margin-top:-4px}
-  .punch{margin-top:16px;width:100%;padding:16px;border-radius:14px;font-size:16px;font-weight:800;
-    background:var(--grad);color:#fff;box-shadow:0 12px 28px rgba(108,140,255,.45);display:flex;gap:10px;
-    align-items:center;justify-content:center}
-  .punch.done{background:rgba(55,211,155,.15);color:var(--ok);box-shadow:none;cursor:default}
-  .next{display:flex;align-items:center;gap:12px;margin-top:14px;padding:13px;border-radius:13px;
-    background:var(--bg2);border:1px dashed var(--line)}
-  .next .em{font-size:22px}
-  .next b{font-size:16px}
-  .timeline{display:flex;flex-direction:column;gap:2px;margin-top:4px}
-  .tl{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:10px;padding:11px;border-radius:12px}
+  .metaBar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;
+    border-radius:13px;background:var(--bg2);border:1px solid var(--line)}
+  .kpi{display:flex;flex-direction:column;gap:3px}
+  .kpi .v{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+  .kpi .l{color:var(--mut);font-size:12px}
+
+  .timeline{display:flex;flex-direction:column;gap:2px}
+  .tl{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:10px;padding:10px;border-radius:12px}
   .tl:hover{background:var(--bg2)}
   .tl .dot{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:15px;
     background:var(--card);border:1px solid var(--line)}
@@ -106,12 +91,8 @@
   .tl .lb small{display:block;color:var(--mut);font-weight:500;font-size:12px}
   .tl .hr{font-weight:800;font-variant-numeric:tabular-nums;font-size:16px}
   .tl .hr small{color:var(--mut);font-weight:600}
-  .metaBar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px;padding:12px 14px;
-    border-radius:13px;background:var(--bg2);border:1px solid var(--line)}
-  .kpi{display:flex;flex-direction:column;gap:3px}
-  .kpi .v{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
-  .kpi .l{color:var(--mut);font-size:12px}
-  .toggle{position:relative;width:46px;height:27px;border-radius:999px;background:var(--line);transition:.2s;flex:none}
+
+  .toggle{position:relative;width:46px;height:27px;border-radius:999px;background:var(--line);transition:.2s;flex:none;cursor:pointer}
   .toggle::after{content:"";position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#fff;transition:.2s}
   .toggle.on{background:var(--ok)}
   .toggle.on::after{left:22px}
@@ -119,27 +100,41 @@
   .switchRow:last-child{border-bottom:0}
   .switchRow .tx b{font-weight:700}
   .switchRow .tx small{display:block;color:var(--mut);font-size:12px;margin-top:2px}
-
-  /* ---------- TABELAS ---------- */
-  table{width:100%;border-collapse:collapse}
-  th,td{text-align:left;padding:11px 10px;border-bottom:1px solid var(--line);font-size:14px}
-  th{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
-  td .b{font-variant-numeric:tabular-nums;font-weight:700}
-  .saldo.pos{color:var(--ok)} .saldo.neg{color:var(--bad)}
-  .doc{display:flex;align-items:center;gap:12px;padding:13px;border-radius:13px;background:var(--bg2);
-    border:1px solid var(--line);margin-bottom:8px}
-  .doc .ic{width:40px;height:40px;border-radius:11px;background:var(--card2);display:grid;place-items:center;font-size:18px}
-  .noti{display:flex;gap:12px;padding:13px;border-radius:13px;background:var(--bg2);border:1px solid var(--line);margin-bottom:8px}
-  .noti .dot{width:9px;height:9px;border-radius:50%;background:var(--pri);margin-top:6px;flex:none}
-  .noti.read .dot{background:var(--mut2)}
   .cfgGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   @media(max-width:640px){.cfgGrid{grid-template-columns:1fr}}
+
+  /* ---------- SHEET (pergunta do almoço) ---------- */
+  .sheetBg{position:fixed;inset:0;background:rgba(8,10,20,.65);backdrop-filter:blur(3px);
+    display:grid;place-items:end center;z-index:50}
+  .sheet{width:100%;max-width:480px;background:linear-gradient(180deg,var(--card2),var(--card));
+    border:1px solid var(--line);border-radius:22px 22px 0 0;padding:24px 22px 28px;box-shadow:var(--sh)}
+  @media(min-width:720px){.sheetBg{place-items:center}.sheet{border-radius:22px}}
+
+  /* ---------- HISTÓRICO ---------- */
+  .dia{padding:12px 2px;border-bottom:1px solid var(--line)}
+  .dia:last-child{border-bottom:0}
+  .diaHead{display:flex;align-items:center;gap:4px}
+  .diaHoje{background:rgba(108,140,255,.07);border:1px solid rgba(108,140,255,.3);border-radius:14px;padding:12px;margin-bottom:8px}
+  .diaFds{opacity:.55}
+  .batChips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .chip{background:var(--bg2);border:1px solid var(--line);border-radius:11px;padding:7px 11px;min-width:86px}
+  .chip small{display:block;color:var(--mut);font-size:11px;margin-bottom:1px}
+  .chip b{font-variant-numeric:tabular-nums;font-size:14px}
+
+  /* ---------- ALARME ---------- */
+  .alarmOverlay{position:fixed;inset:0;background:rgba(10,6,14,.9);backdrop-filter:blur(6px);
+    display:grid;place-items:center;z-index:70;animation:alrmBg 1s infinite alternate}
+  @keyframes alrmBg{from{background:rgba(10,6,14,.9)}to{background:rgba(64,10,26,.9)}}
+  .alarmBox{text-align:center;padding:34px;max-width:420px}
+  .alarmIco{font-size:74px;animation:alrmShake .5s infinite}
+  @keyframes alrmShake{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(12deg)}}
+  .alarmBox h2{font-size:26px;margin:10px 0 8px}
+  .alarmBox p{margin:0 0 24px;font-size:15px}
+
   .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;
     background:var(--card2);border:1px solid var(--line);box-shadow:var(--sh);padding:13px 18px;border-radius:14px;
-    transition:.25s;z-index:60;font-weight:600;max-width:90vw}
+    transition:.25s;z-index:60;font-weight:600;max-width:90vw;pointer-events:none}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-  .banner{display:flex;gap:10px;align-items:center;padding:11px 14px;border-radius:12px;font-size:13px;font-weight:600;margin-bottom:14px}
-  .banner.demo{background:rgba(255,180,84,.12);color:var(--warn);border:1px solid rgba(255,180,84,.25)}
 </style>
 </head>
 <body>
@@ -148,64 +143,68 @@
 <section id="login">
   <div class="loginCard">
     <div class="brand"><div class="logo">Pi</div><h1>Ponto<span>Imp</span></h1></div>
-    <div class="sub">Seu ponto, do seu jeito — sem hora extra à toa.</div>
-    <div class="field"><label>Empresa (banco)</label><input id="l_banco" placeholder="nº da empresa" autocomplete="off"></div>
+    <div class="sub">Sentinela do seu ponto Secullum — zero extra, zero desconto.</div>
+    <div class="field"><label>Empresa (banco)</label><input id="l_banco" placeholder="nº da empresa" autocomplete="off" inputmode="numeric"></div>
     <div class="row2">
       <div class="field"><label>Tipo</label>
         <select id="l_tipo"><option value="0">Nº Folha</option><option value="1">Identificador</option></select></div>
       <div class="field"><label>Usuário</label><input id="l_user" placeholder="seu nº folha" autocomplete="off"></div>
     </div>
     <div class="field"><label>Senha</label><input id="l_pass" type="password" placeholder="sua senha"></div>
-    <button class="btn" onclick="doLogin()">Entrar</button>
-    <div class="divider">ou</div>
-    <button class="btn ok" onclick="demoLogin()">▶ Entrar em modo demonstração</button>
-    <div class="sub" style="margin:16px 0 0;font-size:12px">
-      Modo demo usa dados fictícios e não conecta a nada. Para dados reais, configure o
-      gateway em Ajustes depois de entrar.
+    <div class="switchRow" style="border:0;padding:4px 0 14px">
+      <div class="tx"><b>Manter conectado</b><small>login fica salvo só neste aparelho</small></div>
+      <div class="toggle on" id="l_lembrar"></div>
     </div>
+    <button class="btn" onclick="doLogin()">Entrar</button>
   </div>
 </section>
 
 <!-- ========================= APP ========================= -->
 <section id="app" class="hidden">
-  <aside id="side">
+  <div class="hd">
     <div class="brand"><div class="logo">Pi</div><h1>Ponto<span>Imp</span></h1></div>
-    <nav class="nav" id="nav">
-      <a data-view="hoje" class="active"><span class="ic">🕘</span> Hoje</a>
-      <a data-view="espelho"><span class="ic">📋</span> Espelho</a>
-      <a data-view="banco"><span class="ic">⏱️</span> Fechamento do dia</a>
-      <a data-view="solic"><span class="ic">✉️</span> Solicitações</a>
-      <a data-view="docs"><span class="ic">📄</span> Documentos</a>
-      <a data-view="notif"><span class="ic">🔔</span> Notificações</a>
-      <a data-view="cfg"><span class="ic">⚙️</span> Ajustes</a>
-    </nav>
-    <div class="who">
-      <div class="nm" id="who_nm">—</div>
-      <div class="em" id="who_em">—</div>
-      <button class="btn ghost sm" style="margin-top:10px;width:100%" onclick="logout()">Sair</button>
-    </div>
-  </aside>
-
-  <main>
-    <div class="top">
-      <div style="display:flex;align-items:center;gap:12px">
-        <button class="menuBtn" onclick="document.getElementById('side').classList.toggle('open')">☰</button>
-        <div><h2 id="v_title">Hoje</h2><div class="date" id="v_date"></div></div>
-      </div>
-      <div id="v_head"></div>
-    </div>
-    <div id="demoBanner" class="banner demo hidden">⚠️ Modo demonstração — dados fictícios.</div>
-    <div id="views"></div>
-  </main>
+    <span class="pill mut" id="syncPill">—</span>
+    <button class="iconBtn" onclick="go(view==='hist'?'hoje':'hist')" title="Histórico">📋</button>
+    <button class="iconBtn" onclick="sincronizar(false)" title="Atualizar do Secullum agora">⟳</button>
+    <button class="iconBtn" onclick="go(view==='cfg'?'hoje':'cfg')" title="Ajustes">⚙️</button>
+  </div>
+  <div id="views" class="cards"></div>
 </section>
+
+<!-- ========================= SHEET DO ALMOÇO ========================= -->
+<div class="sheetBg hidden" id="sheetAlm">
+  <div class="sheet">
+    <h3 style="margin:0 0 6px">🍽️ Almoço de hoje</h3>
+    <p class="muted" id="almTxt" style="margin:0 0 18px;font-size:13px"></p>
+    <button class="btn" onclick="almocoPadrao()">Seguir o padrão</button>
+    <button class="btn ghost" style="margin-top:9px" onclick="almocoSnooze()">Me lembra em 15 min</button>
+    <div class="row2" style="margin-top:9px;align-items:stretch">
+      <div class="field" style="margin:0"><input id="almHora" type="time"></div>
+      <button class="btn ghost" style="padding:9px" onclick="almocoOutraHora()">Vou nesse horário</button>
+    </div>
+    <button class="btn ghost sm" style="margin-top:16px;width:100%;border:0;color:var(--mut)" onclick="fecharSheet()">fechar</button>
+  </div>
+</div>
+
+<!-- ========================= ALARME ========================= -->
+<div class="alarmOverlay hidden" id="alarmOverlay">
+  <div class="alarmBox">
+    <div class="alarmIco">⏰</div>
+    <h2 id="alarmTitulo">Alarme</h2>
+    <p id="alarmCorpo" class="muted"></p>
+    <button class="btn" style="background:linear-gradient(135deg,#ff6b81,#ff8f6b);box-shadow:0 10px 24px rgba(255,107,129,.4)" onclick="pararAlarme()">PARAR ALARME</button>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 
 <script>
 /* =====================================================================
-   MOTOR — fechamento DIÁRIO, sem banco de horas (testado no Node — 17/17)
+   MOTOR v6 — fechamento DIÁRIO, sem banco de horas (testado no Node — 21/21)
    Alvo: ZERAR o dia. Passar da carga = hora extra (irreversível).
    Faltar = desconto. Cada dia fecha em si mesmo.
+   v6: meta de saída agora é ATIVA — pra sair mais cedo o motor usa
+   1º os minutos adiantados da entrada, 2º desconta do almoço (até o piso).
    ===================================================================== */
 const hm = (m)=>{m=Math.round(m);const h=Math.floor(m/60),x=((m%60)+60)%60;return String(h).padStart(2,'0')+':'+String(x).padStart(2,'0');};
 const toMin = (s)=>{ if(s==null||s==='')return null; const [h,m]=String(s).split(':').map(Number); return h*60+m; };
@@ -235,6 +234,23 @@ function planejarDia(batidas, config){
   } else if(adiantMin>0 && c.adiantamento==='almoco_maior'){
     almoco=c.almocoMin+adiantMin;
   }
+  // meta de saída (v6): quer sair mais cedo?
+  // Saída = entrada real + carga + almoço, então quem chegou adiantado JÁ sai
+  // mais cedo — o adiantamento é consumido primeiro, por construção. Se ainda
+  // não bastar pra bater a meta (ou se chegou na hora/atrasado), o que falta
+  // é descontado do almoço, respeitando o piso. Sobrou déficit? Vira desconto
+  // e o app avisa.
+  const almocoAposAtraso=almoco;
+  let cortadoMeta=0, faltaMeta=0;
+  if(meta!=null && c.ativo && estagio<=2){
+    const excesso=(eBase+carga+almoco)-meta;
+    if(excesso>0){
+      const flex=Math.max(0,almoco-c.almocoPiso);
+      cortadoMeta=Math.min(excesso,flex);
+      faltaMeta=excesso-cortadoMeta;
+      almoco-=cortadoMeta;
+    }
+  }
   let plano={ entrada:batidas.entrada??c.entradaPadrao, saidaAlmoco:batidas.saidaAlmoco??c.saidaAlmocoPadrao,
     voltaAlmoco:null, saida:null };
   let alvoSaida=null, custoNaMeta={tipo:'zero',min:0};
@@ -252,24 +268,34 @@ function planejarDia(batidas, config){
   if(atrasoMin>0){
     if(estagio<=2 && c.compensarAtrasoNoAlmoco){
       avisos.push(restanteAtraso===0
-        ? `Entrou ${atrasoMin}min atrasado — recuperado no almoço (agora ${hm(almoco)}). Fecha no horário.`
-        : `Entrou ${atrasoMin}min atrasado — almoço no mínimo (${hm(almoco)}) e saída +${restanteAtraso}min.`);
+        ? `Entrou ${atrasoMin}min atrasado — recuperado no almoço (agora ${hm(almocoAposAtraso)}).${cortadoMeta>0?'':' Fecha no horário.'}`
+        : `Entrou ${atrasoMin}min atrasado — almoço no mínimo (${hm(almocoAposAtraso)}) e saída +${restanteAtraso}min.`);
     } else if(estagio>=3) avisos.push(`Entrou ${atrasoMin}min atrasado.`);
   } else if(adiantMin>0 && estagio<=2){
-    if(c.adiantamento==='almoco_maior'){
+    if(c.adiantamento==='almoco_maior' && cortadoMeta===0){
       avisos.push(`Entrou ${adiantMin}min adiantado — almoço maior (${hm(almoco)}) pra sair no horário.`);
       if(almoco>120) avisos.push(`Almoço acima de 2h — confira se sua empresa permite.`);
-    } else avisos.push(`Entrou ${adiantMin}min adiantado — você sai mais cedo hoje.`);
+    } else if(c.adiantamento!=='almoco_maior' && cortadoMeta===0 && faltaMeta===0)
+      avisos.push(`Entrou ${adiantMin}min adiantado — você sai mais cedo hoje.`);
+  }
+  if(cortadoMeta>0||faltaMeta>0){
+    const partes=[];
+    if(adiantMin>0) partes.push(`${adiantMin}min adiantados`);
+    if(cortadoMeta>0) partes.push(`${cortadoMeta}min a menos de almoço (fica ${hm(almoco)})`);
+    if(faltaMeta===0)
+      avisos.push(`Pra sair ${c.metaSaida} zerando o dia: ${partes.join(' + ')}.`);
+    else
+      avisos.push(`Meta ${c.metaSaida}: mesmo ${adiantMin>0?`com ${adiantMin}min adiantados e `:'com '}almoço no mínimo (${hm(almoco)}), o dia só fecha ${hm(eBase+carga+almoco)}. Sair na meta deixa ${faltaMeta}min de desconto.`);
   }
   if(meta!=null && c.ativo && alvoSaida!=null){
     const diff = meta - alvoSaida;
     if(diff>0){ custoNaMeta={tipo:'extra',min:diff};
       avisos.push(`O dia fecha ${hm(alvoSaida)}. Ficar até ${c.metaSaida} gera ${diff}min de hora extra (evite).`);
     } else if(diff<0){ custoNaMeta={tipo:'desconto',min:-diff};
-      avisos.push(`O dia fecha ${hm(alvoSaida)}. Sair ${c.metaSaida} deixa ${-diff}min de desconto.`);
-    } else avisos.push(`Hoje você fecha exatamente na sua meta ${c.metaSaida}. 👌`); }
+      if(faltaMeta===0) avisos.push(`O dia fecha ${hm(alvoSaida)}. Sair ${c.metaSaida} deixa ${-diff}min de desconto.`);
+    } else if(cortadoMeta===0) avisos.push(`Hoje você fecha exatamente na sua meta ${c.metaSaida}. 👌`); }
   if(meta!=null && c.ativo && estagio===0)
-    avisos.push(`Pra sair ${c.metaSaida} fechando o dia, entre até ${hm(meta-carga-c.almocoMin)}.`);
+    avisos.push(`Pra sair ${c.metaSaida} zerando o dia, entre até ${hm(meta-carga-c.almocoMin)} (almoço normal) ou, no limite, ${hm(meta-carga-c.almocoPiso)} (almoço mínimo).`);
   let saldoRealizadoMin=null;
   if(estagio===4){ const manha=A1-E, tarde=S-A2; saldoRealizadoMin=(manha+tarde)-carga; }
   let proximaAcao;
@@ -279,7 +305,7 @@ function planejarDia(batidas, config){
   else if(estagio===3)proximaAcao={tipo:'bater_saida',horario:plano.saida};
   else proximaAcao={tipo:'dia_fechado',horario:batidas.saida};
   return { estagio, plano, alvoSaida:alvoSaida!=null?hm(alvoSaida):null, almocoPlanejado:almoco,
-    recuperado, restanteAtraso, custoNaMeta, atrasoMin, adiantMin, saldoRealizadoMin, proximaAcao, avisos };
+    recuperado, restanteAtraso, cortadoMeta, faltaMeta, custoNaMeta, atrasoMin, adiantMin, saldoRealizadoMin, proximaAcao, avisos };
 }
 
 function situacaoAgora(plan, agoraMin){
@@ -302,380 +328,59 @@ function situacaoAgora(plan, agoraMin){
 /* =====================================================================
    ESTADO
    ===================================================================== */
-const LS='pontoimp.v1';
+const LS='pontoimp.v2';
+const defHoje=()=>({ data:hojeStr(), entrada:null, saidaAlmoco:null, voltaAlmoco:null, saida:null,
+  almocoPrevisto:null, snoozeAte:null, perguntaFeita:false, metaHoje:'' });
 const defState=()=>({
-  demo:true, gateway:'', token:'',
-  func:{ nome:'Dener Batista', email:'dener@impactaweb.com.br', empresa:'Impacta Soluções Web', funcao:'Desenvolvedor' },
+  gateway:'',
+  auth:{banco:'',tipo:'0',usuario:'',senha:'',token:'',lembrar:true},
+  func:{nome:'',empresa:''},
   cfg:{ cargaSegQui:492, cargaSex:432, entradaPadrao:'08:00', saidaAlmocoPadrao:'12:00', almocoMin:108,
         almocoPiso:60, compensarAtrasoNoAlmoco:true, adiantamento:'sair_cedo',
-        metaSegQui:'', metaSex:'', toleranciaMin:5, ativo:true, alarmes:true, lembrarPonto:true },
-  hoje:{ data:hojeStr(), entrada:null, saidaAlmoco:null, voltaAlmoco:null, saida:null },
-  notifAlarmadas:{},
+        metaSegQui:'', metaSex:'', toleranciaMin:5, ativo:true, alarmes:true, modoAlarme:true, pollMin:3 },
+  hoje:defHoje(),
+  hist:{ts:0,dias:[]},
+  notificados:{}, ultimaSyncMs:null,
 });
-let S = load();
-function load(){ try{ const s=JSON.parse(localStorage.getItem(LS)); if(s&&s.cfg){ if(s.hoje.data!==hojeStr()) s.hoje=defState().hoje; return s;} }catch(e){} return defState(); }
-function save(){ localStorage.setItem(LS, JSON.stringify(S)); }
+let S=load();
+function load(){
+  try{
+    const s=JSON.parse(localStorage.getItem(LS));
+    if(s&&s.cfg){
+      const st={...defState(),...s,cfg:{...defState().cfg,...s.cfg},auth:{...defState().auth,...s.auth},hoje:{...defHoje(),...(s.hoje||{})}};
+      if(st.hoje.data!==hojeStr()){ st.hoje=defHoje(); st.notificados={}; }
+      return st;
+    }
+  }catch(e){}
+  try{ // migração da v1: aproveita config, gateway e sessão
+    const v1=JSON.parse(localStorage.getItem('pontoimp.v1'));
+    if(v1&&v1.cfg){ const st=defState();
+      st.cfg={...st.cfg,...v1.cfg}; delete st.cfg.lembrarPonto; delete st.cfg.metaSaida;
+      st.gateway=v1.gateway||'';
+      if(v1.token) st.auth.token=v1.token;
+      if(v1.func) st.func={nome:v1.func.nome||'',empresa:v1.func.empresa||''};
+      return st; }
+  }catch(e){}
+  return defState();
+}
+function save(){ localStorage.setItem(LS,JSON.stringify(S)); }
 function hojeStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function nowMin(){ const d=new Date(); return d.getHours()*60+d.getMinutes(); }
 function nowHM(){ const d=new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
-// carga muda por dia: seg-qui 8h12, sexta 7h, fim de semana folga
 function diaSemana(){ return new Date().getDay(); }            // 0=dom .. 6=sáb
 function ehFolga(){ const d=diaSemana(); return d===0||d===6; }
 function cargaHojeMin(){ const d=diaSemana(); if(d===5) return S.cfg.cargaSex; if(d>=1&&d<=4) return S.cfg.cargaSegQui; return 0; }
 function nomeDiaCarga(){ const d=diaSemana(); if(d===5) return 'sexta'; if(d>=1&&d<=4) return 'seg–qui'; return 'fim de semana'; }
-function metaHoje(){ const d=diaSemana(); if(d===5) return S.cfg.metaSex; if(d>=1&&d<=4) return S.cfg.metaSegQui; return ''; }
-function cfgHoje(){ return {...S.cfg, cargaMin:cargaHojeMin(), metaSaida:metaHoje()}; }
+function metaCfgHoje(){ const d=diaSemana(); if(d===5) return S.cfg.metaSex; if(d>=1&&d<=4) return S.cfg.metaSegQui; return ''; }
+// o almoço previsto do dia e a meta de hoje entram como "padrão do dia" no motor
+function cfgHoje(){ return {...S.cfg, cargaMin:cargaHojeMin(), metaSaida:(S.hoje.metaHoje||metaCfgHoje()||null),
+  saidaAlmocoPadrao:(S.hoje.almocoPrevisto||S.cfg.saidaAlmocoPadrao)}; }
 
 /* =====================================================================
-   DADOS DEMO (espelho, banco, solicitações, docs, notificações)
-   ===================================================================== */
-const DEMO = {
-  espelho:(()=>{ const dias=[]; const hoje=new Date(); const nomes=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-    for(let i=13;i>=0;i--){ const d=new Date(hoje); d.setDate(hoje.getDate()-i); const wd=d.getDay();
-      const fds= wd===0||wd===6; const dd=String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');
-      if(fds){ dias.push({data:dd,dia:nomes[wd],bat:[],saldo:0,fds:true}); continue; }
-      const atr=[0,0,0,5,12,0,3,0,20,0][i%10]; const ent=480+atr;
-      const bat=[hm(ent),'12:00','13:00',hm(ent+540-60)]; // fecha 8h
-      const saldo=[0,0,0,10,-5,0,0,15,-20,0,0,5,0,0][i]; dias.push({data:dd,dia:nomes[wd],bat,saldo,fds:false}); }
-    return dias; })(),
-  banco:{ saldo:'+03:45', mes:'+01:20', ontem:'00:00' },
-  solic:[ {t:'Ajuste de ponto',d:'12/08',st:'Pendente',cls:'warn'},
-          {t:'Férias — 02 a 16/09',d:'05/08',st:'Aprovada',cls:'ok'},
-          {t:'Abono — atestado',d:'28/07',st:'Aprovada',cls:'ok'} ],
-  docs:[ {n:'Holerite — Julho/2026',t:'PDF',ic:'🧾'}, {n:'Comprovante de ponto — Jul',t:'PDF',ic:'📑'},
-         {n:'Informe de rendimentos 2025',t:'PDF',ic:'📄'}, {n:'Espelho assinado — Jun',t:'PDF',ic:'✍️'} ],
-  notif:[ {t:'Seu espelho de julho está disponível para assinatura.',q:'há 2h',read:false},
-          {t:'Solicitação de férias aprovada.',q:'ontem',read:false},
-          {t:'Lembrete: bata o ponto de entrada.',q:'ontem',read:true} ],
-};
-
-/* =====================================================================
-   ROTEAMENTO / RENDER
-   ===================================================================== */
-const $=(s,r=document)=>r.querySelector(s);
-const el=(h)=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.firstChild;};
-let view='hoje', clockTimer=null;
-
-function go(v){ view=v; document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('active',a.dataset.view===v));
-  $('#side').classList.remove('open'); render(); }
-document.getElementById('nav').addEventListener('click',e=>{const a=e.target.closest('a');if(a)go(a.dataset.view);});
-
-const titles={hoje:'Hoje',espelho:'Espelho de ponto',banco:'Fechamento do dia',solic:'Solicitações',docs:'Documentos',notif:'Notificações',cfg:'Ajustes'};
-function render(){
-  $('#v_title').textContent=titles[view];
-  $('#v_date').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
-  $('#v_head').innerHTML='';
-  $('#demoBanner').classList.toggle('hidden',!S.demo);
-  const box=$('#views'); box.innerHTML='';
-  if(view==='hoje') box.appendChild(viewHoje());
-  if(view==='espelho') box.appendChild(viewEspelho());
-  if(view==='banco') box.appendChild(viewBanco());
-  if(view==='solic') box.appendChild(viewSolic());
-  if(view==='docs') box.appendChild(viewDocs());
-  if(view==='notif') box.appendChild(viewNotif());
-  if(view==='cfg') box.appendChild(viewCfg());
-}
-
-/* ---------- HOJE (o coração) ---------- */
-const LABELS={entrada:'Entrada',saidaAlmoco:'Saída p/ almoço',voltaAlmoco:'Volta do almoço',saida:'Saída'};
-const ORDER=['entrada','saidaAlmoco','voltaAlmoco','saida'];
-const ACAO_LB={bater_entrada:'Bater entrada',sair_almoco:'Sair para o almoço',voltar_almoco:'Voltar do almoço',bater_saida:'Bater saída',dia_fechado:'Dia completo'};
-const ACAO_EMOJI={bater_entrada:'🏢',sair_almoco:'🍽️',voltar_almoco:'💼',bater_saida:'🏁',dia_fechado:'✅'};
-
-function proximoCampo(){ for(const k of ORDER) if(!S.hoje[k]) return k; return null; }
-
-function viewHoje(){
-  if(ehFolga()){
-    return el(`<div class="card" style="text-align:center;padding:40px">
-      <div style="font-size:44px">🎉</div>
-      <h3 style="border:0">Hoje é folga</h3>
-      <p class="muted" style="margin:0">Sem carga horária no fim de semana. Bom descanso!</p></div>`);
-  }
-  const plan=planejarDia(S.hoje,cfgHoje());
-  const wrap=el('<div class="cards grid2"></div>');
-
-  // --- coluna esquerda: relógio + timeline
-  const left=el('<div class="cards"></div>');
-  const rel=el(`<div class="card">
-    <div class="clock"><div class="t" id="clk">${nowHM()}</div>
-      <div class="d">${new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}</div></div>
-  </div>`);
-  const campo=proximoCampo();
-  if(campo){
-    const btn=el(`<button class="punch">${ACAO_EMOJI[plan.proximaAcao.tipo]} Bater ${LABELS[campo].toLowerCase()} agora</button>`);
-    btn.onclick=()=>baterPonto(campo);
-    rel.appendChild(btn);
-    const p=plan.proximaAcao;
-    rel.appendChild(el(`<div class="next"><div class="em">${ACAO_EMOJI[p.tipo]}</div>
-      <div><div class="muted" style="font-size:12px">Próximo passo sugerido</div>
-      <b>${ACAO_LB[p.tipo]} — ${p.horario}</b></div></div>`));
-  } else {
-    rel.appendChild(el(`<div class="punch done">✅ Todos os pontos batidos hoje</div>`));
-  }
-  const sit=situacaoAgora(plan, nowMin());
-  const sitCls = (sit.estado==='em_extra'||sit.estado==='extra_fechado')?'bad'
-    : sit.estado==='desconto_fechado'?'warn'
-    : (sit.estado==='zerado'||sit.estado==='hora_de_sair')?'ok':'mut';
-  rel.appendChild(el(`<div class="pill ${sitCls}" style="width:100%;box-sizing:border-box;justify-content:center;margin-top:12px;padding:11px;white-space:normal;text-align:center">${sit.txt}</div>`));
-  left.appendChild(rel);
-
-  // timeline
-  const tl=el('<div class="card"><h3>Plano do dia</h3><div class="timeline"></div></div>');
-  const tlBox=tl.querySelector('.timeline');
-  ORDER.forEach(k=>{
-    const real=S.hoje[k], alvo=plan.plano[k];
-    const done=!!real, isNext=(k===campo);
-    const row=el(`<div class="tl ${done?'done':''} ${isNext?'next':''}">
-      <div class="dot">${done?'✓':(isNext?'→':'○')}</div>
-      <div class="lb">${LABELS[k]}<small>${done?'batido':(S.cfg.ativo?'sugerido pelo motor':'horário padrão')}</small></div>
-      <div class="hr">${real|| (alvo?('<small>'+alvo+'</small>'):'--:--')}</div></div>`);
-    tlBox.appendChild(row);
-  });
-  left.appendChild(tl);
-  wrap.appendChild(left);
-
-  // --- coluna direita: motor / meta / custo
-  const right=el('<div class="cards"></div>');
-  const cm = plan.custoNaMeta || {tipo:'zero',min:0};
-  const metaDia = metaHoje();
-  const metaPill = metaDia
-    ? (cm.tipo==='zero'?`<span class="pill ok">✓ meta ${metaDia} zera o dia</span>`
-      : cm.tipo==='extra'?`<span class="pill bad">meta gera +${cm.min}min extra</span>`
-      : `<span class="pill warn">meta gera −${cm.min}min desconto</span>`) : '';
-  const avisoCls=(a)=> a.includes('hora extra')||a.includes('EXTRA')?'bad' : a.includes('desconto')?'warn' : a.includes('👌')||a.includes('zera')?'ok':'warn';
-  const motor=el(`<div class="card">
-    <h3>Motor de fechamento diário</h3>
-    <div class="switchRow">
-      <div class="tx"><b>Ajudar a não gerar hora extra</b><small>recalcula almoço e saída pra fechar a carga exata (sem banco de horas)</small></div>
-      <div class="toggle ${S.cfg.ativo?'on':''}" id="tg_ativo"></div>
-    </div>
-    <div class="metaBar" style="margin-top:12px">
-      <div class="kpi"><span class="v">${plan.alvoSaida||'--:--'}</span><span class="l">saída exata (zera o dia)</span></div>
-      <div style="text-align:right">${metaPill}
-        <div class="muted" style="font-size:12px;margin-top:6px">carga ${hm(cargaHojeMin())} (${nomeDiaCarga()}) · almoço ${hm(S.cfg.almocoMin)}</div>
-      </div>
-    </div>
-    ${plan.avisos.length?`<div style="margin-top:12px;display:flex;flex-direction:column;gap:7px">
-      ${plan.avisos.map(a=>`<div class="pill ${avisoCls(a)}" style="white-space:normal;text-align:left">💡 ${a}</div>`).join('')}</div>`:''}
-  </div>`);
-  motor.querySelector('#tg_ativo').onclick=()=>{ S.cfg.ativo=!S.cfg.ativo; save(); toast(S.cfg.ativo?'Motor ativado':'Motor desativado'); render(); };
-  right.appendChild(motor);
-
-  // resumo rápido
-  const done=ORDER.filter(k=>S.hoje[k]).length;
-  const resumo=el(`<div class="card"><h3>Resumo de hoje</h3>
-    <div class="cards grid3">
-      <div class="kpi"><span class="v">${done}/4</span><span class="l">batidas</span></div>
-      <div class="kpi"><span class="v" style="color:${plan.atrasoMin>S.cfg.toleranciaMin?'var(--warn)':'var(--ok)'}">${plan.atrasoMin}min</span><span class="l">atraso entrada</span></div>
-      <div class="kpi"><span class="v">${metaHoje()||'--'}</span><span class="l">meta de hoje</span></div>
-    </div>
-    <button class="btn ghost sm" style="width:100%;margin-top:14px" onclick="resetHoje()">Limpar batidas de hoje (demo)</button>
-  </div>`);
-  right.appendChild(resumo);
-  wrap.appendChild(right);
-  return wrap;
-}
-
-function baterPonto(campo){
-  S.hoje[campo]=nowHM(); save();
-  toast(`✓ ${LABELS[campo]} registrada às ${S.hoje[campo]}`);
-  agendarAlarmes();
-  render();
-  // (modo real: aqui chamaríamos POST /me/ponto no gateway — ver conectarReal())
-}
-function resetHoje(){ S.hoje=defState().hoje; save(); toast('Batidas de hoje limpas'); agendarAlarmes(); render(); }
-
-/* ---------- ESPELHO ---------- */
-function viewEspelho(){
-  const real = !S.demo && S.realEspelho;
-  const fonte = real ? S.realEspelho.slice().reverse() : DEMO.espelho.slice().reverse();
-  const c=el(`<div class="card"><h3>${real?'Espelho do mês — real':'Últimos 14 dias (demo)'}</h3></div>`);
-  const t=el('<table><thead><tr><th>Dia</th><th>Batidas</th><th>Saldo</th></tr></thead><tbody></tbody></table>');
-  const tb=t.querySelector('tbody');
-  fonte.forEach(d=>{
-    let saldo, cls='';
-    if(real){ saldo = (d.fds && !d.bat.length)?'—':(d.saldoStr||'—'); }
-    else { saldo = d.fds?'—':(d.saldo===0?'00:00':(d.saldo>0?'+':'-')+hm(Math.abs(d.saldo))); cls=d.saldo>0?'pos':d.saldo<0?'neg':''; }
-    tb.appendChild(el(`<tr>
-      <td><b>${d.data}</b> <span class="muted">${d.dia}</span></td>
-      <td class="b">${(!d.bat||!d.bat.length)?'<span class="muted">'+(d.fds?'folga':'—')+'</span>':d.bat.join('  ·  ')}</td>
-      <td class="b saldo ${cls}">${saldo}</td></tr>`));
-  });
-  c.appendChild(t);
-  if(real) c.appendChild(el('<p class="muted" style="font-size:12px;margin:10px 0 0">Dados reais do seu ponto no Secullum, via gateway local.</p>'));
-  return c;
-}
-
-/* ---------- BANCO ---------- */
-function viewBanco(){
-  const w=el('<div class="cards"></div>');
-  if(ehFolga()){
-    w.appendChild(el(`<div class="card"><h3>Hoje</h3><p class="muted" style="margin:0">Fim de semana — sem carga horária.</p></div>`));
-  } else {
-    const plan=planejarDia(S.hoje,cfgHoje());
-    const sit=situacaoAgora(plan,nowMin());
-    const cls=sit.estado.includes('extra')?'bad':sit.estado.includes('desconto')?'warn':'ok';
-    w.appendChild(el(`<div class="card"><h3>Fechamento de hoje (${nomeDiaCarga()})</h3>
-      <div class="cards grid3">
-        <div class="kpi"><span class="v">${hm(cargaHojeMin())}</span><span class="l">carga de hoje</span></div>
-        <div class="kpi"><span class="v">${plan.alvoSaida||'--:--'}</span><span class="l">saída que zera</span></div>
-        <div class="kpi"><span class="v">${hm(S.cfg.almocoMin)}</span><span class="l">almoço fixo</span></div>
-      </div>
-      <div class="pill ${cls}" style="margin-top:12px;white-space:normal">${sit.txt}</div></div>`));
-  }
-  w.appendChild(el(`<div class="card"><h3>Sua regra: cada dia fecha em si</h3>
-    <p class="muted" style="margin:0 0 12px">Sem banco de horas. O alvo é <b>zerar todo dia</b>:
-    passar da carga vira hora extra (que você paga e não quer), faltar vira desconto. O motor
-    calcula a saída exata e te avisa pra fechar no ponto.</p>
-    <div class="cards grid3">
-      <div class="kpi"><span class="v" style="color:var(--ok);font-size:16px">seg–qui</span><span class="l">${hm(S.cfg.cargaSegQui)} + ${hm(S.cfg.almocoMin)} almoço → sai 18:00</span></div>
-      <div class="kpi"><span class="v" style="color:var(--pri);font-size:16px">sexta</span><span class="l">${hm(S.cfg.cargaSex)} de carga → sai mais cedo</span></div>
-      <div class="kpi"><span class="v muted" style="font-size:16px">sáb/dom</span><span class="l">folga</span></div>
-    </div></div>`));
-  const dias=DEMO.espelho.filter(d=>!d.fds);
-  const zerou=dias.filter(d=>d.saldo===0).length, ex=dias.filter(d=>d.saldo>0).length, de=dias.filter(d=>d.saldo<0).length;
-  w.appendChild(el(`<div class="card"><h3>Últimos dias úteis (demo)</h3>
-    <div class="cards grid3">
-      <div class="kpi"><span class="v" style="color:var(--ok)">${zerou}</span><span class="l">fecharam certo</span></div>
-      <div class="kpi"><span class="v" style="color:var(--bad)">${ex}</span><span class="l">com hora extra</span></div>
-      <div class="kpi"><span class="v" style="color:var(--warn)">${de}</span><span class="l">com desconto</span></div>
-    </div></div>`));
-  return w;
-}
-
-/* ---------- SOLICITAÇÕES ---------- */
-function viewSolic(){
-  const c=el('<div class="card"><h3>Minhas solicitações</h3></div>');
-  DEMO.solic.forEach(s=>c.appendChild(el(`<div class="doc">
-    <div class="ic">✉️</div><div style="flex:1"><b>${s.t}</b><div class="muted" style="font-size:12px">enviada em ${s.d}</div></div>
-    <span class="pill ${s.cls}">${s.st}</span></div>`)));
-  c.appendChild(el('<button class="btn sm" style="margin-top:10px" onclick="toast(\'Em modo demo — no real abre o formulário de solicitação\')">+ Nova solicitação</button>'));
-  return c;
-}
-
-/* ---------- DOCUMENTOS ---------- */
-function viewDocs(){
-  const c=el('<div class="card"><h3>Meus documentos</h3></div>');
-  DEMO.docs.forEach(d=>c.appendChild(el(`<div class="doc">
-    <div class="ic">${d.ic}</div><div style="flex:1"><b>${d.n}</b><div class="muted" style="font-size:12px">${d.t}</div></div>
-    <button class="btn ghost sm" onclick="toast('Em modo demo — no real baixa via gateway (proxy)')">Baixar</button></div>`)));
-  return c;
-}
-
-/* ---------- NOTIFICAÇÕES ---------- */
-function viewNotif(){
-  const c=el('<div class="card"><h3>Notificações</h3></div>');
-  DEMO.notif.forEach(n=>c.appendChild(el(`<div class="noti ${n.read?'read':''}">
-    <div class="dot"></div><div style="flex:1"><div>${n.t}</div><div class="muted" style="font-size:12px;margin-top:3px">${n.q}</div></div></div>`)));
-  return c;
-}
-
-/* ---------- AJUSTES ---------- */
-function viewCfg(){
-  const g=S; const c=el('<div class="cards"></div>');
-  // motor
-  const m=el(`<div class="card"><h3>Jornada e motor</h3>
-    <div class="cfgGrid">
-      <div class="field"><label>Carga seg–qui (hh:mm)</label><input id="c_cargaSQ" value="${hm(g.cfg.cargaSegQui)}"></div>
-      <div class="field"><label>Carga sexta (hh:mm)</label><input id="c_cargaSex" value="${hm(g.cfg.cargaSex)}"></div>
-      <div class="field"><label>Almoço (hh:mm, fixo)</label><input id="c_almoco" value="${hm(g.cfg.almocoMin)}"></div>
-      <div class="field"><label>Entrada padrão</label><input id="c_ent" value="${g.cfg.entradaPadrao}"></div>
-      <div class="field"><label>Saída p/ almoço padrão</label><input id="c_alm" value="${g.cfg.saidaAlmocoPadrao}"></div>
-      <div class="field"><label>Meta saída seg–qui (opcional)</label><input id="c_metaSQ" value="${g.cfg.metaSegQui||''}" placeholder="ex.: 18:00"></div>
-      <div class="field"><label>Meta saída sexta (opcional)</label><input id="c_metaSex" value="${g.cfg.metaSex||''}" placeholder="ex.: 17:00"></div>
-      <div class="field"><label>Tolerância de atraso (min)</label><input id="c_tol" value="${g.cfg.toleranciaMin}"></div>
-    </div>
-    <div class="switchRow"><div class="tx"><b>Ajudar a não gerar hora extra</b><small>calcula a saída exata que zera o dia</small></div>
-      <div class="toggle ${g.cfg.ativo?'on':''}" id="c_ativo"></div></div>
-    <div class="switchRow"><div class="tx"><b>Atraso: recuperar no almoço</b><small>encurta o almoço (até 1h) pra sair no horário; o resto empurra a saída</small></div>
-      <div class="toggle ${g.cfg.compensarAtrasoNoAlmoco?'on':''}" id="c_compAtraso"></div></div>
-    <div class="field" style="margin-top:10px"><label>Ao chegar adiantado</label>
-      <select id="c_adiant">
-        <option value="sair_cedo" ${g.cfg.adiantamento==='sair_cedo'?'selected':''}>Sair mais cedo</option>
-        <option value="almoco_maior" ${g.cfg.adiantamento==='almoco_maior'?'selected':''}>Fazer almoço maior (sair no horário)</option>
-      </select></div>
-    <div class="switchRow"><div class="tx"><b>Alarmes de ponto</b><small>avisa 5 min antes e na hora de cada batida</small></div>
-      <div class="toggle ${g.cfg.alarmes?'on':''}" id="c_alarmes"></div></div>
-    <button class="btn" style="margin-top:14px" onclick="salvarCfg()">Salvar ajustes</button>
-    <p class="muted" style="font-size:12px;margin:12px 0 0">A carga e o horário também podem vir automáticos da Secullum (cadastro de horário do funcionário) quando conectar ao gateway.</p>
-  </div>`);
-  m.querySelector('#c_ativo').onclick=(e)=>e.currentTarget.classList.toggle('on');
-  m.querySelector('#c_compAtraso').onclick=(e)=>e.currentTarget.classList.toggle('on');
-  m.querySelector('#c_alarmes').onclick=(e)=>{e.currentTarget.classList.toggle('on'); if(e.currentTarget.classList.contains('on'))pedirPermissao();};
-  c.appendChild(m);
-
-  // conexão real
-  const cn=el(`<div class="card"><h3>Dados reais (gateway)</h3>
-    <p class="muted" style="margin:0 0 12px">Já vem apontado para o gateway PontoImp na nuvem (Cloudflare),
-    que fala com o Secullum. Deixe em branco pra usar o padrão, ou informe outro endereço.</p>
-    <div class="field"><label>URL do gateway</label><input id="c_gw" value="${g.gateway||''}" placeholder="https://pontoimp-gateway.dener70.workers.dev"></div>
-    <button class="btn ghost sm" onclick="testarGateway()">Testar conexão</button>
-  </div>`);
-  c.appendChild(cn);
-  return c;
-}
-function salvarCfg(){
-  const v=(id)=>$('#'+id).value.trim();
-  S.cfg.cargaSegQui=toMin(v('c_cargaSQ'))||492;
-  S.cfg.cargaSex=toMin(v('c_cargaSex'))||420;
-  S.cfg.almocoMin=toMin(v('c_almoco'))||108;
-  S.cfg.entradaPadrao=v('c_ent')||'08:00';
-  S.cfg.saidaAlmocoPadrao=v('c_alm')||'12:00';
-  S.cfg.metaSegQui=v('c_metaSQ')||'';
-  S.cfg.metaSex=v('c_metaSex')||'';
-  S.cfg.toleranciaMin=parseInt(v('c_tol'))||0;
-  S.cfg.ativo=$('#c_ativo').classList.contains('on');
-  S.cfg.compensarAtrasoNoAlmoco=$('#c_compAtraso').classList.contains('on');
-  S.cfg.adiantamento=$('#c_adiant').value;
-  S.cfg.alarmes=$('#c_alarmes').classList.contains('on');
-  const gw=$('#c_gw'); if(gw) S.gateway=gw.value.trim();
-  save(); toast('✓ Ajustes salvos'); agendarAlarmes(); go('hoje');
-}
-
-/* =====================================================================
-   ALARMES (Notification API + beep) e LEMBRETES
-   ===================================================================== */
-let alarmTimers=[];
-function pedirPermissao(){ if('Notification'in window && Notification.permission==='default') Notification.requestPermission(); }
-function beep(){ try{ const a=new (window.AudioContext||window.webkitAudioContext)();
-  const o=a.createOscillator(),g=a.createGain(); o.connect(g);g.connect(a.destination);
-  o.type='sine';o.frequency.value=880;g.gain.setValueAtTime(.001,a.currentTime);
-  g.gain.exponentialRampToValueAtTime(.3,a.currentTime+.02);
-  g.gain.exponentialRampToValueAtTime(.001,a.currentTime+.6); o.start();o.stop(a.currentTime+.6);}catch(e){} }
-function notificar(titulo,corpo){
-  beep();
-  if('Notification'in window && Notification.permission==='granted') new Notification(titulo,{body:corpo,icon:''});
-  else toast(titulo+' — '+corpo);
-}
-function agendarAlarmes(){
-  alarmTimers.forEach(t=>clearTimeout(t)); alarmTimers=[];
-  if(!S.cfg.alarmes || ehFolga()) return;
-  const plan=planejarDia(S.hoje,cfgHoje());
-  const campo=proximoCampo(); if(!campo) return;
-  const alvo=toMin(plan.proximaAcao.horario); if(alvo==null) return;
-  const delta=alvo-nowMin();
-  const msg=ACAO_LB[plan.proximaAcao.tipo];
-  // alarme no horário e 5 min antes
-  [ [delta-5,`Faltam 5 min: ${msg} (${plan.proximaAcao.horario})`],
-    [delta,  `Hora de ${msg.toLowerCase()} — ${plan.proximaAcao.horario}`] ].forEach(([d,txt])=>{
-    if(d>0 && d<24*60) alarmTimers.push(setTimeout(()=>notificar('PontoImp',txt), d*60000));
-  });
-}
-
-/* =====================================================================
-   LOGIN / SESSÃO / INTEGRAÇÃO REAL (via gateway local)
+   GATEWAY (Secullum) — o app NÃO bate ponto: só lê e vigia
    ===================================================================== */
 function gwUrl(){ return (S.gateway||'https://pontoimp-gateway.dener70.workers.dev').replace(/\/$/,''); }
-function api(path){ return fetch(gwUrl()+path,{headers:{'Authorization':'Bearer '+S.token}}); }
-async function testarGateway(){
-  const url=(($('#c_gw')&&$('#c_gw').value.trim())||'https://pontoimp-gateway.dener70.workers.dev').replace(/\/$/,'');
-  toast('Testando '+url+'…');
-  try{ const r=await fetch(url+'/health'); const j=await r.json();
-    toast(j.ok?'✓ Gateway online — pode logar com sua senha real':'Respondeu, mas sem ok'); }
-  catch(e){ toast('Não conectou ao gateway: '+(e.message||e)); }
-}
-function mapFunc(f){ if(!f) return S.func;
-  return { nome:f.nome||'(sem nome)', email:f.email||'', empresa:f.empresa||'', funcao:f.funcao||'', _raw:f }; }
+function api(path){ return fetch(gwUrl()+path,{headers:{'Authorization':'Bearer '+S.auth.token}}); }
 function normalizaEspelho(data){
   const lista=(data&&(data.lista||data.Lista))||[];
   const nomes=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
@@ -687,57 +392,504 @@ function normalizaEspelho(data){
       dia:dt?nomes[dt.getDay()]:'', bat, saldoStr:d.saldo||d.Saldo||'', fds:dt?(dt.getDay()===0||dt.getDay()===6):false };
   });
 }
-async function carregarReal(){
-  const h=new Date(),y=h.getFullYear(),m=h.getMonth();
-  const ini=`${y}-${String(m+1).padStart(2,'0')}-01`;
-  const ult=new Date(y,m+1,0).getDate();
-  const fim=`${y}-${String(m+1).padStart(2,'0')}-${String(ult).padStart(2,'0')}`;
+
+/* ---------- login persistente ---------- */
+async function tentarLogin({banco,usuario,senha,tipo}){
+  let r;
   try{
-    const r=await api(`/me/espelho?inicio=${ini}&fim=${fim}`);
-    const txt=await r.text(); let data=null; try{data=JSON.parse(txt);}catch{}
-    if(!r.ok){ toast('Logado, mas o espelho voltou '+r.status); return; }
-    if(data){ S.realEspelho=normalizaEspelho(data);
-      const dia=(S.realEspelho||[]).find(d=>d.iso===hojeStr());
-      if(dia) S.hoje={ data:hojeStr(), entrada:dia.bat[0]||null, saidaAlmoco:dia.bat[1]||null,
-        voltaAlmoco:dia.bat[2]||null, saida:dia.bat[3]||null };
-      save(); render(); toast('✓ Espelho real carregado');
-    }
-  }catch(e){ toast('Falhou ao ler espelho: '+(e.message||e)); }
+    r=await fetch(gwUrl()+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({banco,usuario,senha,tipo:tipo==='1'?'identificador':'folha'})});
+  }catch(e){ return {ok:false,erro:'Gateway não respondeu — sem internet?'}; }
+  let data={}; try{ data=await r.json(); }catch(e){}
+  if(!r.ok) return {ok:false,erro:data.erro||('Erro '+r.status)};
+  const f=data.func||{};
+  return {ok:true,token:data.token,func:{nome:f.nome||'',empresa:f.empresa||''}};
 }
 async function doLogin(){
   const banco=$('#l_banco').value.trim(), usuario=$('#l_user').value.trim(),
-        senha=$('#l_pass').value, tipo=$('#l_tipo').value==='1'?'identificador':'folha';
+        senha=$('#l_pass').value, tipo=$('#l_tipo').value,
+        lembrar=$('#l_lembrar').classList.contains('on');
   if(!banco||!usuario||!senha){ toast('Preencha empresa, usuário e senha'); return; }
+  pedirPermissao();
   toast('Conectando ao Secullum…');
-  let r; try{
-    r=await fetch(gwUrl()+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({banco,usuario,senha,tipo})});
-  }catch(e){ toast('Gateway não respondeu em '+gwUrl()+' — ele está rodando?'); return; }
-  let data={}; try{data=await r.json();}catch{}
-  if(!r.ok){ toast(data.erro||('Erro '+r.status)); return; }
-  S.demo=false; S.token=data.token; S.func=mapFunc(data.func); S.realEspelho=null; save();
-  enterApp(); toast('Conectado como '+(S.func.nome||'você'));
-  carregarReal();
+  const r=await tentarLogin({banco,usuario,senha,tipo});
+  if(!r.ok){ toast(r.erro); return; }
+  S.auth={banco,tipo,usuario,senha:lembrar?btoa(senha):'',token:r.token,lembrar};
+  if(r.func.nome) S.func=r.func;
+  save(); enterApp();
+  toast('Conectado — '+(S.func.nome||'você'));
 }
-function demoLogin(){ S=defState(); S.demo=true; S.realEspelho=null; save(); enterApp(); toast('Bem-vindo ao modo demonstração'); }
-function enterApp(){
-  $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
-  $('#who_nm').textContent=S.func.nome; $('#who_em').textContent=S.func.empresa;
-  pedirPermissao(); agendarAlarmes(); go('hoje');
-  if(clockTimer)clearInterval(clockTimer);
-  clockTimer=setInterval(()=>{ const c=$('#clk'); if(c)c.textContent=nowHM(); },1000*20);
+async function reloginSilencioso(){
+  if(!S.auth.usuario||!S.auth.senha) return false;
+  let senha=''; try{ senha=atob(S.auth.senha); }catch(e){ return false; }
+  const r=await tentarLogin({banco:S.auth.banco,usuario:S.auth.usuario,senha,tipo:S.auth.tipo});
+  if(!r.ok) return false;
+  S.auth.token=r.token; if(r.func.nome) S.func=r.func; save(); return true;
 }
-function logout(){ if(clockTimer)clearInterval(clockTimer); $('#app').classList.add('hidden'); $('#login').classList.remove('hidden'); }
+function logout(){ S.auth.token=''; S.auth.senha=''; save(); location.reload(); }
+
+/* ---------- sincronização: puxa as batidas do Secullum ---------- */
+let syncing=false;
+async function sincronizar(silencioso=true){
+  if(!S.auth.token||syncing) return; syncing=true;
+  try{
+    if(S.hoje.data!==hojeStr()){ S.hoje=defHoje(); S.notificados={}; save(); }
+    const d=hojeStr(); const rota=`/me/espelho?inicio=${d}&fim=${d}`;
+    let r;
+    try{ r=await api(rota); }catch(e){ setSync('offline'); return; }
+    if(r.status===401){
+      if(!(await reloginSilencioso())){ setSync('sessão expirada'); if(!silencioso) toast('Sessão expirou — entre de novo'); voltarLogin(); return; }
+      try{ r=await api(rota); }catch(e){ setSync('offline'); return; }
+    }
+    if(!r.ok){ setSync('erro '+r.status); return; }
+    let data=null; try{ data=JSON.parse(await r.text()); }catch(e){}
+    if(!data){ setSync('resposta inválida'); return; }
+    const dia=normalizaEspelho(data).find(x=>x.iso===d);
+    const bat=(dia&&dia.bat)||[];
+    const novas={ entrada:bat[0]||null, saidaAlmoco:bat[1]||null, voltaAlmoco:bat[2]||null, saida:bat[3]||null };
+    const mudou=detectarMudancas(novas);
+    Object.assign(S.hoje,novas);
+    S.ultimaSyncMs=Date.now(); save(); setSync('ok');
+    if(!silencioso) toast('✓ Atualizado do Secullum');
+    if(mudou||!silencioso) render();
+  } finally { syncing=false; }
+}
+// nova batida detectada → o motor recalcula e avisa a consequência na hora
+function detectarMudancas(novas){
+  const antes=S.hoje; let mudou=false;
+  const plan=planejarDia({...antes,...novas},cfgHoje());
+  const msgs={
+    entrada:()=> plan.atrasoMin>0
+      ? `Entrada ${novas.entrada} — ${plan.atrasoMin}min de atraso. ${plan.restanteAtraso>0?`Almoço no mínimo e saída ${plan.plano.saida}.`:`Compenso no almoço (${hm(plan.almocoPlanejado)}).`}`
+      : plan.adiantMin>0
+      ? `Entrada ${novas.entrada} — ${plan.adiantMin}min adiantado. Saída exata ${plan.alvoSaida}.`
+      : `Entrada ${novas.entrada}, em ponto. Saída exata ${plan.alvoSaida}.`,
+    saidaAlmoco:()=>`Almoço batido ${novas.saidaAlmoco}. Volte às ${plan.plano.voltaAlmoco} (almoço de ${hm(plan.almocoPlanejado)}).`,
+    voltaAlmoco:()=>`Volta batida ${novas.voltaAlmoco}. Saída exata pra zerar: ${plan.alvoSaida}.`,
+    saida:()=>{ const s=plan.saldoRealizadoMin;
+      return s===0?`Dia fechado às ${novas.saida} — zerado! 🎯`
+        : s>0?`Dia fechado às ${novas.saida} — ficou ${s}min de hora EXTRA.`
+        : `Dia fechado às ${novas.saida} — ${-s}min de desconto.`; }
+  };
+  for(const k of ['entrada','saidaAlmoco','voltaAlmoco','saida']){
+    if(novas[k]&&novas[k]!==antes[k]){
+      mudou=true;
+      const K=hojeStr()+'|bat_'+k+'_'+novas[k];
+      if(!S.notificados[K]){ S.notificados[K]=1; notificar('PontoImp — ponto detectado', msgs[k](), K); }
+    }
+    if(!novas[k]&&antes[k]) mudou=true; // batida corrigida/removida no Secullum
+  }
+  return mudou;
+}
+function setSync(st){
+  const p=$('#syncPill'); if(!p) return;
+  if(st==='ok'){ p.className='pill ok';
+    p.textContent='● '+new Date(S.ultimaSyncMs).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
+  else if(st==='—'){ p.className='pill mut'; p.textContent='—'; }
+  else { p.className='pill warn'; p.textContent=st; }
+}
 
 /* =====================================================================
-   UTIL
+   ALARMES — avisa no momento certo, conforme o estágio do dia
+   ===================================================================== */
+function eventosDoDia(plan){
+  const ev=[];
+  if(ehFolga()) return ev;
+  const est=plan.estagio;
+  if(est===0){
+    const e=toMin(S.cfg.entradaPadrao);
+    ev.push({chave:'ent_pre',min:e-5,titulo:'🏢 Entrada em 5 min',corpo:`Registre a entrada até ${S.cfg.entradaPadrao} pra não abrir atraso.`});
+    ev.push({chave:'ent',min:e,titulo:'🏢 Hora de entrar',corpo:`Entrada padrão ${S.cfg.entradaPadrao}.`,nivel:'alarme'});
+  } else if(est===1){
+    const alvo=S.hoje.snoozeAte!=null?S.hoje.snoozeAte:toMin(plan.plano.saidaAlmoco);
+    if(!S.hoje.perguntaFeita)
+      ev.push({chave:'alm_ask_'+alvo,min:alvo-10,titulo:'🍽️ Almoço às '+hm(alvo),corpo:'Vai no padrão, mais tarde ou outro horário? Toque pra escolher.',acao:'almoco'});
+    ev.push({chave:'alm_'+alvo,min:alvo,titulo:'🍽️ Hora do almoço',corpo:`Saída planejada ${hm(alvo)}. Bom apetite!`,nivel:'alarme'});
+  } else if(est===2){
+    const v=toMin(plan.plano.voltaAlmoco);
+    ev.push({chave:'volta_pre_'+v,min:v-5,titulo:'💼 Volta em 5 min',corpo:`Volta às ${plan.plano.voltaAlmoco} — almoço de ${hm(plan.almocoPlanejado)} hoje.`});
+    ev.push({chave:'volta_'+v,min:v,titulo:'💼 Hora de voltar',corpo:`Registre a volta às ${plan.plano.voltaAlmoco} pra fechar certinho.`,nivel:'alarme'});
+  } else if(est===3){
+    const s=toMin(plan.alvoSaida);
+    ev.push({chave:'sai_pre10_'+s,min:s-10,titulo:'🏁 Saída em 10 min',corpo:`Saída exata ${plan.alvoSaida} zera o dia.`});
+    ev.push({chave:'sai_pre5_'+s,min:s-5,titulo:'🏁 Saída em 5 min',corpo:`Vai fechando — ${plan.alvoSaida}.`});
+    ev.push({chave:'sai_'+s,min:s,titulo:'🏁 SAIA AGORA',corpo:`${plan.alvoSaida} — cada minuto a mais vira hora extra.`,nivel:'alarme'});
+    for(let k=5;k<=30;k+=5)
+      ev.push({chave:'extra_'+s+'_'+k,min:s+k,titulo:'⚠️ Hora extra acumulando',corpo:`Já passaram ${k}min do fechamento. Registre a saída!`,nivel:'alarme'});
+  }
+  return ev;
+}
+function checarAvisos(){
+  if(!S.cfg.alarmes||!S.auth.token||ehFolga()) return;
+  const plan=planejarDia(S.hoje,cfgHoje());
+  const agora=nowMin();
+  for(const e of eventosDoDia(plan)){
+    if(e.min==null) continue;
+    const K=hojeStr()+'|'+e.chave;
+    if(agora>=e.min&&agora<=e.min+4&&!S.notificados[K]){ // janela de 5min segura contra throttling
+      S.notificados[K]=1; save();
+      notificar(e.titulo,e.corpo,K,e.nivel);
+      if(e.acao==='almoco') abrirPerguntaAlmoco();
+    }
+  }
+}
+function pedirPermissao(){ try{ if('Notification'in window&&Notification.permission==='default') Notification.requestPermission(); }catch(e){} }
+
+/* ---------- som: bipe simples (avisos) e SIRENE em loop (alarme) ---------- */
+let audioCtx=null;
+function garantirAudio(){ try{
+  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended') audioCtx.resume();
+}catch(e){} }
+document.addEventListener('pointerdown',garantirAudio,{capture:true}); // navegador exige gesto pra liberar som
+function tocarTom(freq,ini,dur,vol){ if(!audioCtx) return;
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.type='square'; o.frequency.value=freq;
+  const t=audioCtx.currentTime+ini;
+  g.gain.setValueAtTime(.001,t);
+  g.gain.exponentialRampToValueAtTime(vol,t+.02);
+  g.gain.exponentialRampToValueAtTime(.001,t+dur);
+  o.start(t); o.stop(t+dur+.05); }
+function beep(){ garantirAudio(); tocarTom(880,0,.5,.25); }
+function sirene(){ garantirAudio(); tocarTom(988,0,.28,.5); tocarTom(660,.32,.28,.5); tocarTom(988,.64,.28,.5); }
+
+/* ---------- ALARME de verdade: sirene em loop + vibração + tela, até desligar ---------- */
+let alarmeAtivo=null;
+function dispararAlarme(titulo,corpo){
+  pararAlarme();
+  const ov=$('#alarmOverlay'); if(!ov) return;
+  $('#alarmTitulo').textContent=titulo; $('#alarmCorpo').textContent=corpo;
+  ov.classList.remove('hidden');
+  const loop=()=>{ sirene(); try{ if(navigator.vibrate) navigator.vibrate([420,140,420]); }catch(e){} };
+  loop();
+  alarmeAtivo={ timer:setInterval(loop,1500), fim:setTimeout(pararAlarme,120000) }; // desliga sozinho em 2min
+}
+function pararAlarme(){
+  if(alarmeAtivo){ clearInterval(alarmeAtivo.timer); clearTimeout(alarmeAtivo.fim); alarmeAtivo=null; }
+  try{ if(navigator.vibrate) navigator.vibrate(0); }catch(e){}
+  const ov=$('#alarmOverlay'); if(ov) ov.classList.add('hidden');
+}
+async function notificar(titulo,corpo,tag,nivel){
+  const alarme=(nivel==='alarme'&&S.cfg.modoAlarme);
+  if(alarme) dispararAlarme(titulo,corpo); else beep();
+  try{
+    if('Notification'in window&&Notification.permission==='granted'){
+      const opts={body:corpo,icon:'icon-192.png',badge:'icon-192.png',tag:tag||titulo,renotify:true,
+        requireInteraction:alarme,vibrate:alarme?[420,140,420,140,420,140,420]:[200]};
+      const reg=('serviceWorker'in navigator)?await navigator.serviceWorker.getRegistration():null;
+      if(reg&&reg.showNotification) reg.showNotification(titulo,opts);
+      else new Notification(titulo,{body:corpo,icon:'icon-192.png'});
+    }
+  }catch(e){}
+  toast(titulo+' — '+corpo);
+}
+
+/* ---------- pergunta do almoço ---------- */
+function abrirPerguntaAlmoco(){
+  const plan=planejarDia(S.hoje,cfgHoje());
+  $('#almTxt').textContent=`Planejado: sair ${plan.plano.saidaAlmoco} e voltar ${plan.plano.voltaAlmoco} (${hm(plan.almocoPlanejado)} de almoço). Com isso o dia fecha ${plan.alvoSaida}.`;
+  $('#almHora').value=plan.plano.saidaAlmoco;
+  $('#sheetAlm').classList.remove('hidden');
+}
+function fecharSheet(){ $('#sheetAlm').classList.add('hidden'); }
+function almocoPadrao(){ S.hoje.perguntaFeita=true; S.hoje.snoozeAte=null; S.hoje.almocoPrevisto=null;
+  save(); fecharSheet(); toast('Almoço no padrão — te aviso na hora.'); render(); }
+function almocoSnooze(){ S.hoje.snoozeAte=nowMin()+15; S.hoje.perguntaFeita=false;
+  save(); fecharSheet(); toast('Ok — te pergunto de novo em 15 min.'); render(); }
+function almocoOutraHora(){
+  const v=$('#almHora').value; if(!v){ toast('Escolhe um horário primeiro'); return; }
+  S.hoje.almocoPrevisto=v; S.hoje.perguntaFeita=true; S.hoje.snoozeAte=null; save(); fecharSheet();
+  const plan=planejarDia(S.hoje,cfgHoje());
+  toast(`Almoço às ${v} — volta ${plan.plano.voltaAlmoco}, saída ${plan.alvoSaida}.`); render();
+}
+
+/* ---------- relógio interno: checa avisos e sincroniza ---------- */
+let tickTimer=null;
+function startTick(){ if(tickTimer)clearInterval(tickTimer); tickTimer=setInterval(tick,20000); tick(); }
+function tick(){
+  if(!S.auth.token) return;
+  if(S.hoje.data!==hojeStr()){ S.hoje=defHoje(); S.notificados={}; save(); render(); }
+  // modo ampulheta: passou do horário previsto e a batida ainda não apareceu →
+  // o Secullum pode estar processando; sincroniza a cada 45s por até 25min
+  const pend=batidaPendente();
+  const intervalo=(pend&&pend.urgente)?45000:S.cfg.pollMin*60000;
+  if(!S.ultimaSyncMs||Date.now()-S.ultimaSyncMs>=intervalo) sincronizar();
+  checarAvisos();
+  const c=$('#clk'); if(c) c.textContent=nowHM();
+}
+// a próxima batida já deveria ter acontecido e não chegou do Secullum?
+function batidaPendente(){
+  if(ehFolga()||!S.auth.token) return null;
+  const plan=planejarDia(S.hoje,cfgHoje());
+  if(plan.estagio>=4) return null;
+  const campo=ORDER[plan.estagio];
+  const alvo=toMin(plan.plano[campo]||'');
+  if(alvo==null) return null;
+  const agora=nowMin();
+  if(agora<alvo) return null;
+  return {campo, desde:hm(alvo), urgente:(agora-alvo)<=25};
+}
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&S.auth.token){ sincronizar(); checarAvisos(); } });
+
+/* =====================================================================
+   UI
+   ===================================================================== */
+const $=(s,r=document)=>r.querySelector(s);
+const el=(h)=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.firstChild;};
+let view='hoje';
+function go(v){ view=v; if(v==='hist') carregarHistorico(); render(); }
+const LABELS={entrada:'Entrada',saidaAlmoco:'Saída p/ almoço',voltaAlmoco:'Volta do almoço',saida:'Saída'};
+const ORDER=['entrada','saidaAlmoco','voltaAlmoco','saida'];
+function render(){ const box=$('#views'); if(!box) return; box.innerHTML='';
+  box.appendChild(view==='cfg'?viewCfg():view==='hist'?viewHist():viewHoje()); }
+
+function viewHoje(){
+  const wrap=el('<div class="cards"></div>');
+  if(ehFolga()){
+    wrap.appendChild(el(`<div class="card" style="text-align:center;padding:40px">
+      <div style="font-size:44px">🎉</div>
+      <h3 style="border:0">Hoje é folga</h3>
+      <p class="muted" style="margin:0">Fim de semana, sem carga. O monitor volta segunda.</p></div>`));
+    return wrap;
+  }
+  const plan=planejarDia(S.hoje,cfgHoje());
+  const sit=situacaoAgora(plan,nowMin());
+  const sitCls=(sit.estado==='em_extra'||sit.estado==='extra_fechado')?'bad'
+    : sit.estado==='desconto_fechado'?'warn'
+    : (sit.estado==='zerado'||sit.estado==='hora_de_sair')?'ok':'mut';
+  const cm=plan.custoNaMeta||{tipo:'zero',min:0};
+  const metaStr=S.hoje.metaHoje||metaCfgHoje();
+  const metaPill=metaStr
+    ? (cm.tipo==='zero'?`<span class="pill ok">✓ meta ${metaStr} zera</span>`
+      : cm.tipo==='extra'?`<span class="pill bad">meta +${cm.min}min extra</span>`
+      : `<span class="pill warn">meta −${cm.min}min desconto</span>`)
+    : '<span class="pill mut">sem meta hoje</span>';
+
+  wrap.appendChild(el(`<div class="card">
+    <div class="clock"><div class="t" id="clk">${nowHM()}</div>
+      <div class="d">${new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'})}${S.func.nome?' · '+S.func.nome.split(' ')[0]:''}</div></div>
+    <div class="metaBar" style="margin-top:14px">
+      <div class="kpi"><span class="v">${plan.alvoSaida||'--:--'}</span><span class="l">saída exata (zera o dia)</span></div>
+      <div style="text-align:right">${metaPill}
+        <div class="muted" style="font-size:12px;margin-top:6px">carga ${hm(cargaHojeMin())} (${nomeDiaCarga()}) · almoço ${hm(plan.almocoPlanejado)}${plan.almocoPlanejado!==S.cfg.almocoMin?' (ajustado)':''}</div></div>
+    </div>
+    <div class="pill ${sitCls}" style="width:100%;box-sizing:border-box;justify-content:center;margin-top:12px;padding:11px;white-space:normal;text-align:center">${sit.txt}</div>
+  </div>`));
+
+  const tl=el(`<div class="card"><h3>Batidas de hoje <span class="muted" style="text-transform:none;font-weight:500">· lidas do Secullum</span></h3><div class="timeline"></div></div>`);
+  const tlBox=tl.querySelector('.timeline');
+  const prox=ORDER.find(k=>!S.hoje[k]);
+  const pend=batidaPendente();
+  ORDER.forEach(k=>{
+    const real=S.hoje[k], alvo=plan.plano[k], isNext=(k===prox);
+    const aguardando=isNext&&pend&&pend.campo===k;
+    tlBox.appendChild(el(`<div class="tl ${real?'done':''} ${isNext?'next':''}">
+      <div class="dot">${real?'✓':(aguardando?'⏳':(isNext?'→':'○'))}</div>
+      <div class="lb">${LABELS[k]}<small>${real?'registrado no Secullum':(aguardando?`bateu? esperando o Secullum processar (previsto ${pend.desde})`:'previsto pelo motor')}</small></div>
+      <div class="hr">${real||(alvo?('<small>'+alvo+'</small>'):'--:--')}</div></div>`));
+  });
+  if(plan.estagio<=1) tl.appendChild(el(`<button class="btn ghost sm" style="width:100%;margin-top:10px" onclick="abrirPerguntaAlmoco()">🍽️ Ajustar almoço de hoje</button>`));
+  wrap.appendChild(tl);
+
+  wrap.appendChild(el(`<div class="card"><h3>Quero sair hoje às…</h3>
+    <div class="row2" style="align-items:stretch">
+      <div class="field" style="margin:0"><input id="metaHoje" type="time" value="${S.hoje.metaHoje||''}"></div>
+      <button class="btn sm" style="width:100%" onclick="salvarMetaHoje()">Aplicar</button>
+    </div>
+    <p class="muted" style="font-size:12px;margin:10px 0 0">Uso primeiro seus minutos adiantados; o que faltar desconto do almoço (piso ${hm(S.cfg.almocoPiso)}). Vazio = meta padrão dos Ajustes.</p>
+  </div>`));
+
+  if(plan.avisos.length){
+    const avisoCls=(a)=>a.includes('hora extra')||a.includes('EXTRA')?'bad':a.includes('desconto')?'warn':(a.includes('👌')||a.includes('zera'))?'ok':'warn';
+    wrap.appendChild(el(`<div class="card"><h3>Motor de fechamento</h3>
+      <div style="display:flex;flex-direction:column;gap:7px">
+      ${plan.avisos.map(a=>`<div class="pill ${avisoCls(a)}" style="white-space:normal;text-align:left">💡 ${a}</div>`).join('')}</div></div>`));
+  }
+
+  const agora=nowMin();
+  const futuros=eventosDoDia(plan).filter(e=>e.min>=agora&&!e.chave.startsWith('extra_')).slice(0,4);
+  wrap.appendChild(el(`<div class="card"><h3>Próximos avisos</h3>${
+    futuros.length?`<div class="timeline">${futuros.map(e=>`
+      <div class="tl"><div class="dot">${e.nivel==='alarme'?'⏰':'🔔'}</div><div class="lb">${e.titulo}<small>${e.corpo}</small></div><div class="hr"><small>${hm(e.min)}</small></div></div>`).join('')}</div>`
+    :'<p class="muted" style="margin:0">Nada agendado por agora. ✌️</p>'}</div>`));
+  return wrap;
+}
+function salvarMetaHoje(){ S.hoje.metaHoje=$('#metaHoje').value||''; save();
+  toast(S.hoje.metaHoje?('Meta de hoje: '+S.hoje.metaHoje):'Meta de hoje removida'); render(); }
+
+/* ---------- histórico: hoje sempre no topo + últimos 30 dias do Secullum ---------- */
+async function carregarHistorico(force=false){
+  if(!S.auth.token) return;
+  if(!force&&S.hist.ts&&Date.now()-S.hist.ts<5*60000) return;
+  const f=(d)=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const fim=new Date(), ini=new Date(); ini.setDate(ini.getDate()-30);
+  const rota=`/me/espelho?inicio=${f(ini)}&fim=${f(fim)}`;
+  let r;
+  try{ r=await api(rota); }catch(e){ return; }
+  if(r.status===401){ if(!(await reloginSilencioso())) return; try{ r=await api(rota); }catch(e){ return; } }
+  if(!r.ok) return;
+  let data=null; try{ data=JSON.parse(await r.text()); }catch(e){}
+  if(!data) return;
+  S.hist={ts:Date.now(),dias:normalizaEspelho(data).filter(d=>d.iso&&d.iso<=hojeStr()).sort((a,b)=>a.iso<b.iso?1:-1)};
+  save(); if(view==='hist') render();
+}
+function cargaDoDia(iso){ const wd=new Date(iso+'T12:00:00').getDay();
+  if(wd===5) return S.cfg.cargaSex; if(wd>=1&&wd<=4) return S.cfg.cargaSegQui; return 0; }
+function minutosTrabalhados(bat){
+  if(!bat||bat.length<4) return null;
+  const E=toMin(bat[0]),A1=toMin(bat[1]),A2=toMin(bat[2]),Sd=toMin(bat[3]);
+  if([E,A1,A2,Sd].some(x=>x==null)) return null;
+  return {trab:(A1-E)+(Sd-A2), almoco:A2-A1};
+}
+function chipBat(rotulo,valor){ return `<div class="chip"><small>${rotulo}</small><b>${valor||'—'}</b></div>`; }
+function linhaDia(d,ehHoje){
+  const m=minutosTrabalhados(d.bat);
+  let saldoHtml='';
+  if(d.fds&&!d.bat.length) saldoHtml='<span class="pill mut">folga</span>';
+  else if(d.saldoStr) saldoHtml=`<span class="pill ${d.saldoStr.startsWith('-')?'warn':(/[1-9]/.test(d.saldoStr)?'bad':'ok')}">saldo ${d.saldoStr}</span>`;
+  else if(m){ const dif=m.trab-cargaDoDia(d.iso);
+    saldoHtml=dif===0?'<span class="pill ok">zerou 🎯</span>':dif>0?`<span class="pill bad">+${dif}min extra</span>`:`<span class="pill warn">−${-dif}min desconto</span>`; }
+  else if(!ehHoje&&d.bat.length) saldoHtml=`<span class="pill warn">${d.bat.length} batida${d.bat.length>1?'s':''}</span>`;
+  else if(ehHoje) saldoHtml='<span class="pill mut">em andamento</span>';
+  const almocoTxt=(d.bat[1]&&d.bat[2])?`${d.bat[1]}–${d.bat[2]}`:(d.bat[1]||'—');
+  return `<div class="dia ${ehHoje?'diaHoje':''} ${d.fds?'diaFds':''}">
+    <div class="diaHead"><b>${d.dia} ${d.data}</b>${ehHoje?'<span class="pill ok" style="margin-left:8px">hoje</span>':''}<span style="flex:1"></span>${saldoHtml}</div>
+    ${(d.fds&&!d.bat.length)?'':`<div class="batChips">
+      ${chipBat('🏢 entrada',d.bat[0])}
+      ${chipBat('🍽️ almoço',almocoTxt)}
+      ${chipBat('🏁 saída',d.bat[3])}
+      ${m?chipBat('⏱️ trabalhado',hm(m.trab)):''}
+    </div>`}
+  </div>`;
+}
+function viewHist(){
+  const wrap=el('<div class="cards"></div>');
+  const nomes=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const d=new Date();
+  const hojeDia={ iso:hojeStr(), data:String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'),
+    dia:nomes[d.getDay()], fds:ehFolga(), saldoStr:'',
+    bat:[S.hoje.entrada,S.hoje.saidaAlmoco,S.hoje.voltaAlmoco,S.hoje.saida].filter(Boolean) };
+  const plan=ehFolga()?null:planejarDia(S.hoje,cfgHoje());
+  const pend=batidaPendente();
+  const cab=el(`<div class="card"><h3>Histórico <span class="muted" style="text-transform:none;font-weight:500">· últimos 30 dias do Secullum</span></h3>
+    <div id="histBox">${linhaDia(hojeDia,true)}</div></div>`);
+  const box=cab.querySelector('#histBox');
+  if(plan&&plan.estagio<4)
+    box.querySelector('.diaHoje').insertAdjacentHTML('beforeend',
+      `<p class="muted" style="font-size:12px;margin:8px 0 0">${pend?`⏳ esperando o Secullum processar a próxima batida (prevista ${pend.desde})…`:`Previsão de fechamento hoje: ${plan.alvoSaida||'--:--'}.`}</p>`);
+  const outros=S.hist.dias.filter(x=>x.iso!==hojeStr());
+  if(outros.length) box.insertAdjacentHTML('beforeend',outros.map(x=>linhaDia(x,false)).join(''));
+  else box.insertAdjacentHTML('beforeend',`<p class="muted" style="margin:12px 0 0">${S.hist.ts?'Sem dias anteriores no período.':'Carregando histórico do Secullum…'}</p>`);
+  wrap.appendChild(cab);
+  return wrap;
+}
+
+function viewCfg(){
+  const g=S; const c=el('<div class="cards"></div>');
+  const m=el(`<div class="card"><h3>Jornada e motor</h3>
+    <div class="cfgGrid">
+      <div class="field"><label>Carga seg–qui (hh:mm)</label><input id="c_cargaSQ" value="${hm(g.cfg.cargaSegQui)}"></div>
+      <div class="field"><label>Carga sexta (hh:mm)</label><input id="c_cargaSex" value="${hm(g.cfg.cargaSex)}"></div>
+      <div class="field"><label>Almoço padrão (hh:mm)</label><input id="c_almoco" value="${hm(g.cfg.almocoMin)}"></div>
+      <div class="field"><label>Almoço mínimo — piso</label><input id="c_piso" value="${hm(g.cfg.almocoPiso)}"></div>
+      <div class="field"><label>Entrada padrão</label><input id="c_ent" value="${g.cfg.entradaPadrao}"></div>
+      <div class="field"><label>Saída p/ almoço padrão</label><input id="c_alm" value="${g.cfg.saidaAlmocoPadrao}"></div>
+      <div class="field"><label>Meta saída seg–qui</label><input id="c_metaSQ" value="${g.cfg.metaSegQui||''}" placeholder="ex.: 17:30"></div>
+      <div class="field"><label>Meta saída sexta</label><input id="c_metaSex" value="${g.cfg.metaSex||''}" placeholder="ex.: 17:00"></div>
+    </div>
+    <div class="switchRow"><div class="tx"><b>Motor ligado</b><small>calcula a saída exata que zera o dia e ajusta o almoço</small></div>
+      <div class="toggle ${g.cfg.ativo?'on':''}" id="c_ativo"></div></div>
+    <div class="switchRow"><div class="tx"><b>Atraso: recuperar no almoço</b><small>encurta o almoço até o piso pra sair no horário</small></div>
+      <div class="toggle ${g.cfg.compensarAtrasoNoAlmoco?'on':''}" id="c_compAtraso"></div></div>
+    <div class="field" style="margin-top:10px"><label>Ao chegar adiantado</label>
+      <select id="c_adiant">
+        <option value="sair_cedo" ${g.cfg.adiantamento==='sair_cedo'?'selected':''}>Sair mais cedo</option>
+        <option value="almoco_maior" ${g.cfg.adiantamento==='almoco_maior'?'selected':''}>Almoço maior (sair no horário)</option>
+      </select></div>
+  </div>`);
+  const n=el(`<div class="card"><h3>Notificações e sincronização</h3>
+    <div class="switchRow"><div class="tx"><b>Alarmes</b><small>entrada, almoço (com pergunta), volta, saída e alerta de extra</small></div>
+      <div class="toggle ${g.cfg.alarmes?'on':''}" id="c_alarmes"></div></div>
+    <div class="switchRow"><div class="tx"><b>Alarme de verdade</b><small>sirene em loop + vibração + tela cheia até você desligar (nos eventos na hora H)</small></div>
+      <div class="toggle ${g.cfg.modoAlarme?'on':''}" id="c_modoAlarme"></div></div>
+    <div class="field" style="margin-top:10px"><label>Atualizar do Secullum a cada (min)</label><input id="c_poll" value="${g.cfg.pollMin}" inputmode="numeric"></div>
+    <div class="row2">
+      <button class="btn ghost sm" style="width:100%" onclick="pedirPermissao();toast('Se o navegador perguntar, permita as notificações')">🔔 Ativar notificações</button>
+      <button class="btn ghost sm" style="width:100%" onclick="instalarApp()">📲 Instalar no celular</button>
+    </div>
+    <p class="muted" style="font-size:12px;margin:12px 0 0">Os alarmes tocam com o app aberto — pode estar em segundo plano. Instalado na tela inicial fica melhor ainda.</p>
+  </div>`);
+  const cn=el(`<div class="card"><h3>Conexão</h3>
+    <div class="field"><label>URL do gateway</label><input id="c_gw" value="${g.gateway||''}" placeholder="https://pontoimp-gateway.dener70.workers.dev"></div>
+    <button class="btn ghost sm" onclick="testarGateway()">Testar conexão</button>
+    <p class="muted" style="font-size:12px;margin:12px 0 0">Conectado como <b>${g.func.nome||'—'}</b>${g.func.empresa?' · '+g.func.empresa:''}. Seu login fica salvo só neste aparelho.</p>
+    <button class="btn ghost sm" style="margin-top:10px;color:var(--bad)" onclick="logout()">Sair e limpar sessão</button>
+  </div>`);
+  const b=el('<button class="btn">Salvar ajustes</button>'); b.onclick=salvarCfg;
+  c.appendChild(m); c.appendChild(n); c.appendChild(cn); c.appendChild(b);
+  ['#c_ativo','#c_compAtraso','#c_alarmes','#c_modoAlarme'].forEach(id=>{ c.querySelector(id).onclick=(e)=>e.currentTarget.classList.toggle('on'); });
+  return c;
+}
+function salvarCfg(){
+  const v=(id)=>$('#'+id).value.trim();
+  S.cfg.cargaSegQui=toMin(v('c_cargaSQ'))||492;
+  S.cfg.cargaSex=toMin(v('c_cargaSex'))||432;
+  S.cfg.almocoMin=toMin(v('c_almoco'))||108;
+  S.cfg.almocoPiso=toMin(v('c_piso'))||60;
+  S.cfg.entradaPadrao=v('c_ent')||'08:00';
+  S.cfg.saidaAlmocoPadrao=v('c_alm')||'12:00';
+  S.cfg.metaSegQui=v('c_metaSQ')||'';
+  S.cfg.metaSex=v('c_metaSex')||'';
+  S.cfg.ativo=$('#c_ativo').classList.contains('on');
+  S.cfg.compensarAtrasoNoAlmoco=$('#c_compAtraso').classList.contains('on');
+  S.cfg.adiantamento=$('#c_adiant').value;
+  S.cfg.alarmes=$('#c_alarmes').classList.contains('on');
+  S.cfg.modoAlarme=$('#c_modoAlarme').classList.contains('on');
+  S.cfg.pollMin=Math.max(1,parseInt(v('c_poll'))||3);
+  S.gateway=v('c_gw');
+  save(); toast('✓ Ajustes salvos'); go('hoje'); sincronizar();
+}
+async function testarGateway(){
+  const url=((($('#c_gw')&&$('#c_gw').value.trim())||gwUrl())).replace(/\/$/,'');
+  toast('Testando '+url+'…');
+  try{ const r=await fetch(url+'/health'); const j=await r.json(); toast(j.ok?'✓ Gateway online':'Respondeu, mas sem ok'); }
+  catch(e){ toast('Não conectou: '+(e.message||e)); }
+}
+
+/* =====================================================================
+   PWA — instalação no celular
+   ===================================================================== */
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',(e)=>{ e.preventDefault(); deferredPrompt=e; });
+function instalarApp(){
+  if(deferredPrompt){ deferredPrompt.prompt(); deferredPrompt=null; return; }
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  toast(ios?'No Safari: Compartilhar → Adicionar à Tela de Início':'Menu do navegador → Instalar app / Adicionar à tela inicial');
+}
+if('serviceWorker'in navigator){ window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }); }
+
+/* =====================================================================
+   BOOT
    ===================================================================== */
 let toastT=null;
-function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show');
-  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2600); }
-
-// auto-entra se já havia sessão demo salva
-if(localStorage.getItem(LS)){ /* fica no login por padrão; usuário escolhe */ }
+function toast(msg){ const t=$('#toast'); if(!t)return; t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),3200); }
+function mostrarLogin(){ $('#app').classList.add('hidden'); $('#login').classList.remove('hidden');
+  if(S.auth.banco)$('#l_banco').value=S.auth.banco;
+  if(S.auth.usuario)$('#l_user').value=S.auth.usuario;
+  $('#l_tipo').value=S.auth.tipo||'0'; }
+function voltarLogin(){ S.auth.token=''; save(); if(tickTimer)clearInterval(tickTimer); mostrarLogin(); }
+function enterApp(){ $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
+  setSync(S.ultimaSyncMs?'ok':'—'); render(); startTick(); sincronizar(false); }
+$('#l_lembrar').onclick=(e)=>e.currentTarget.classList.toggle('on');
+(async function boot(){
+  if(S.auth.token){ enterApp(); }
+  else if(S.auth.usuario&&S.auth.senha){
+    toast('Reconectando…');
+    if(await reloginSilencioso()) enterApp(); else mostrarLogin();
+  } else mostrarLogin();
+})();
 </script>
 </body>
 </html>
