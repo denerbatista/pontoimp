@@ -77,8 +77,32 @@ const server = http.createServer((req,res)=>{
       const passouAlmoco = (new Date().getHours()*60+new Date().getMinutes()) >= 720;
       if(passouAlmoco) check('ampulheta de batida pendente', body.includes('esperando o Secullum processar'));
 
+      // navegação: barra inferior, aba ativa e logo voltando pro início
+      check('barra de navegação tem as três abas', (await page.locator('#nav button').count())===3);
+      check('aba Hoje começa marcada', await page.locator('#nav button[data-v="hoje"]').evaluate(b=>b.classList.contains('on')));
+      await page.click('#nav button[data-v="cfg"]');
+      await page.waitForTimeout(200);
+      check('trocar de aba move a marcação',
+        await page.locator('#nav button[data-v="cfg"]').evaluate(b=>b.classList.contains('on'))
+        && !(await page.locator('#nav button[data-v="hoje"]').evaluate(b=>b.classList.contains('on'))));
+      await page.click('.hd .brand');
+      await page.waitForTimeout(200);
+      check('clicar na logo volta pro início', await page.evaluate(()=>view==='hoje'));
+      check('barra fica fixa e alcançável', await page.locator('#nav').evaluate(n=>
+        getComputedStyle(n).position==='fixed' && getComputedStyle(n).bottom==='0px'));
+      check('conteúdo não fica escondido atrás da barra', await page.evaluate(()=>{
+        const p=getComputedStyle(document.querySelector('#app')).paddingBottom;
+        return parseInt(p,10) >= 80;
+      }));
+      check('toast não tapa as abas', await page.evaluate(()=>{
+        toast('mensagem de teste');
+        const t=document.querySelector('#toast').getBoundingClientRect();
+        const n=document.querySelector('#nav').getBoundingClientRect();
+        return t.bottom <= n.top;
+      }));
+
       // histórico
-      await page.click('button[title="Histórico"]');
+      await page.click('#nav button[data-v="hist"]');
       await page.waitForTimeout(700); // carrega do gateway fake
       const hist=await page.textContent('body');
       check('histórico abre', hist.includes('Histórico'));
@@ -98,7 +122,7 @@ const server = http.createServer((req,res)=>{
       check('PARAR desliga o alarme', await page.locator('#alarmOverlay').isHidden());
 
       // ajustes com o toggle novo
-      await page.click('button[title="Ajustes"]');
+      await page.click('#nav button[data-v="cfg"]');
       await page.waitForTimeout(200);
       check('toggle "Alarme de verdade" nos ajustes', (await page.textContent('body')).includes('Alarme de verdade'));
 

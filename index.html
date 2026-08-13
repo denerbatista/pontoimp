@@ -59,8 +59,24 @@
   .btn.sm{width:auto;padding:9px 15px;font-size:13px}
 
   /* ---------- APP ---------- */
-  #app{min-height:100%;max-width:640px;margin:0 auto;padding:16px 16px 60px}
+  /* o padding de baixo abre espaço pra barra fixa, respeitando a área segura do iPhone */
+  #app{min-height:100%;max-width:640px;margin:0 auto;
+    padding:16px 16px calc(84px + env(safe-area-inset-bottom))}
   .hd{display:flex;align-items:center;gap:10px;margin:4px 0 16px}
+  .hd .brand{cursor:pointer}
+  .hd .brand:active{opacity:.6}
+
+  /* ---------- BARRA DE NAVEGAÇÃO (polegar alcança) ---------- */
+  .nav{position:fixed;left:0;right:0;bottom:0;z-index:40;
+    display:grid;grid-template-columns:repeat(3,1fr);gap:4px;
+    padding:8px 10px calc(8px + env(safe-area-inset-bottom));
+    background:rgba(21,26,46,.92);backdrop-filter:blur(14px);
+    border-top:1px solid var(--line)}
+  .nav button{display:grid;justify-items:center;gap:3px;padding:7px 4px;border-radius:13px;
+    color:var(--mut2);font-size:11px;font-weight:600;transition:.15s}
+  .nav button i{font-style:normal;font-size:20px;line-height:1}
+  .nav button.on{color:var(--pri);background:rgba(108,140,255,.13)}
+  .nav button:active{transform:scale(.94)}
   .hd .brand{justify-content:flex-start;margin:0;flex:1}
   .hd .brand h1{font-size:20px}
   .hd .brand .logo{width:38px;height:38px;border-radius:11px}
@@ -131,7 +147,9 @@
   .alarmBox h2{font-size:26px;margin:10px 0 8px}
   .alarmBox p{margin:0 0 24px;font-size:15px}
 
-  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;
+  /* acima da barra de navegação, senão o aviso tapa as abas */
+  .toast{position:fixed;bottom:calc(88px + env(safe-area-inset-bottom));
+    left:50%;transform:translateX(-50%) translateY(20px);opacity:0;
     background:var(--card2);border:1px solid var(--line);box-shadow:var(--sh);padding:13px 18px;border-radius:14px;
     transition:.25s;z-index:60;font-weight:600;max-width:90vw;pointer-events:none}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -162,14 +180,18 @@
 <!-- ========================= APP ========================= -->
 <section id="app" class="hidden">
   <div class="hd">
-    <div class="brand"><div class="logo">Pi</div><h1>Ponto<span>Imp</span></h1></div>
+    <div class="brand" onclick="go('hoje')" title="Voltar ao início">
+      <div class="logo">Pi</div><h1>Ponto<span>Imp</span></h1></div>
     <span class="pill mut" id="syncPill">—</span>
-    <button class="iconBtn" onclick="go(view==='hist'?'hoje':'hist')" title="Histórico">📋</button>
     <button class="iconBtn" onclick="sincronizar(false)" title="Atualizar do Secullum agora">⟳</button>
-    <button class="iconBtn" onclick="go(view==='cfg'?'hoje':'cfg')" title="Ajustes">⚙️</button>
   </div>
   <div id="convite" class="cards hidden"></div>
   <div id="views" class="cards"></div>
+  <nav class="nav" id="nav">
+    <button onclick="go('hoje')" data-v="hoje"><i>🏠</i>Hoje</button>
+    <button onclick="go('hist')" data-v="hist"><i>📋</i>Histórico</button>
+    <button onclick="go('cfg')" data-v="cfg"><i>⚙️</i>Ajustes</button>
+  </nav>
 </section>
 
 <!-- ========================= SHEET DO ALMOÇO ========================= -->
@@ -762,10 +784,18 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&S.auth.t
 const $=(s,r=document)=>r.querySelector(s);
 const el=(h)=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.firstChild;};
 let view='hoje';
-function go(v){ view=v; if(v==='hist') carregarHistorico(); render(); }
+function go(v){
+  const mesma=(view===v);
+  view=v; if(v==='hist') carregarHistorico(); render();
+  // tocar na aba atual (ou na logo) volta pro topo em vez de não fazer nada
+  window.scrollTo({ top:0, behavior: mesma?'smooth':'auto' });
+}
+function marcarNav(){
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on', b.dataset.v===view));
+}
 const LABELS={entrada:'Entrada',saidaAlmoco:'Saída p/ almoço',voltaAlmoco:'Volta do almoço',saida:'Saída'};
 const ORDER=['entrada','saidaAlmoco','voltaAlmoco','saida'];
-function render(){ const box=$('#views'); if(!box) return; box.innerHTML='';
+function render(){ marcarNav(); const box=$('#views'); if(!box) return; box.innerHTML='';
   box.appendChild(view==='cfg'?viewCfg():view==='hist'?viewHist():viewHoje()); }
 
 function viewHoje(){
