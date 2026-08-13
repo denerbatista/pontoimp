@@ -1,0 +1,736 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>PontoImp</title>
+<style>
+  :root{
+    --bg:#0f1220; --bg2:#151a2e; --card:#1b2138; --card2:#212a47;
+    --line:#2b3455; --txt:#eef1fb; --mut:#9aa5c8; --mut2:#6f7aa3;
+    --pri:#6c8cff; --pri2:#8a6cff; --grad:linear-gradient(135deg,#6c8cff,#8a6cff);
+    --ok:#37d39b; --warn:#ffb454; --bad:#ff6b81; --ring:0 0 0 3px rgba(108,140,255,.25);
+    --sh:0 12px 30px rgba(0,0,0,.35); --r:18px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:radial-gradient(1200px 600px at 80% -10%,rgba(138,108,255,.18),transparent 60%),
+               radial-gradient(1000px 500px at -10% 10%,rgba(108,140,255,.15),transparent 55%),var(--bg);
+    color:var(--txt);font:15px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--pri);text-decoration:none}
+  button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+  .hidden{display:none!important}
+  .muted{color:var(--mut)}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600}
+  .pill.ok{background:rgba(55,211,155,.14);color:var(--ok)}
+  .pill.warn{background:rgba(255,180,84,.14);color:var(--warn)}
+  .pill.bad{background:rgba(255,107,129,.14);color:var(--bad)}
+  .pill.mut{background:rgba(154,165,200,.12);color:var(--mut)}
+
+  /* ---------- LOGIN ---------- */
+  #login{min-height:100%;display:grid;place-items:center;padding:24px}
+  .loginCard{width:100%;max-width:400px;background:linear-gradient(180deg,var(--card2),var(--card));
+    border:1px solid var(--line);border-radius:24px;box-shadow:var(--sh);padding:34px 30px}
+  .brand{display:flex;align-items:center;gap:12px;justify-content:center;margin-bottom:6px}
+  .brand .logo{width:44px;height:44px;border-radius:13px;background:var(--grad);display:grid;place-items:center;
+    font-weight:800;color:#fff;box-shadow:0 8px 20px rgba(108,140,255,.5)}
+  .brand h1{font-size:24px;margin:0;letter-spacing:-.5px}
+  .brand h1 span{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{text-align:center;color:var(--mut);margin:2px 0 22px;font-size:13px}
+  .field{margin-bottom:13px}
+  .field label{display:block;font-size:12px;color:var(--mut);margin:0 0 6px 2px;font-weight:600}
+  .field input,.field select{width:100%;padding:12px 13px;background:var(--bg2);border:1px solid var(--line);
+    border-radius:12px;color:var(--txt);outline:none;transition:.15s}
+  .field input:focus,.field select:focus{border-color:var(--pri);box-shadow:var(--ring)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .btn{width:100%;padding:13px;border-radius:12px;background:var(--grad);color:#fff;font-weight:700;
+    box-shadow:0 10px 24px rgba(108,140,255,.4);transition:.15s;letter-spacing:.2px}
+  .btn:hover{filter:brightness(1.08);transform:translateY(-1px)}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt);box-shadow:none;font-weight:600}
+  .btn.sm{width:auto;padding:9px 15px;font-size:13px}
+  .btn.ok{background:linear-gradient(135deg,#37d39b,#27b58a);box-shadow:0 10px 24px rgba(55,211,155,.35)}
+  .divider{display:flex;align-items:center;gap:10px;color:var(--mut2);font-size:12px;margin:16px 0}
+  .divider::before,.divider::after{content:"";height:1px;background:var(--line);flex:1}
+
+  /* ---------- APP SHELL ---------- */
+  #app{min-height:100%;display:grid;grid-template-columns:240px 1fr}
+  aside{background:linear-gradient(180deg,var(--bg2),transparent);border-right:1px solid var(--line);
+    padding:20px 14px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh}
+  aside .brand{justify-content:flex-start;margin:4px 8px 18px}
+  aside .brand h1{font-size:20px}
+  .nav{display:flex;flex-direction:column;gap:2px}
+  .nav a{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:11px;color:var(--mut);font-weight:600}
+  .nav a .ic{width:20px;text-align:center;opacity:.9}
+  .nav a:hover{background:var(--card);color:var(--txt)}
+  .nav a.active{background:var(--card2);color:var(--txt);box-shadow:inset 3px 0 0 var(--pri)}
+  .who{margin-top:auto;padding:12px;background:var(--card);border:1px solid var(--line);border-radius:14px}
+  .who .nm{font-weight:700;font-size:14px}
+  .who .em{color:var(--mut);font-size:12px}
+  main{padding:26px 30px;max-width:1100px}
+  .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;gap:14px;flex-wrap:wrap}
+  .top h2{margin:0;font-size:22px;letter-spacing:-.4px}
+  .top .date{color:var(--mut);font-size:13px}
+  .cards{display:grid;gap:16px}
+  .grid2{grid-template-columns:1.4fr 1fr}
+  .grid3{grid-template-columns:repeat(3,1fr)}
+  @media(max-width:900px){#app{grid-template-columns:1fr}aside{position:fixed;z-index:40;transform:translateX(-100%);transition:.2s;width:240px}
+    aside.open{transform:none}.grid2,.grid3{grid-template-columns:1fr}main{padding:18px}.menuBtn{display:grid!important}}
+  .menuBtn{display:none;place-items:center;width:40px;height:40px;border-radius:11px;background:var(--card);border:1px solid var(--line)}
+  .card{background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line);
+    border-radius:var(--r);box-shadow:var(--sh);padding:20px}
+  .card h3{margin:0 0 14px;font-size:14px;color:var(--mut);text-transform:uppercase;letter-spacing:.6px;font-weight:700}
+
+  /* ---------- RELOGIO / HOJE ---------- */
+  .clock{text-align:center;padding:6px 0 2px}
+  .clock .t{font-size:52px;font-weight:800;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+  .clock .d{color:var(--mut);font-size:13px;margin-top:-4px}
+  .punch{margin-top:16px;width:100%;padding:16px;border-radius:14px;font-size:16px;font-weight:800;
+    background:var(--grad);color:#fff;box-shadow:0 12px 28px rgba(108,140,255,.45);display:flex;gap:10px;
+    align-items:center;justify-content:center}
+  .punch.done{background:rgba(55,211,155,.15);color:var(--ok);box-shadow:none;cursor:default}
+  .next{display:flex;align-items:center;gap:12px;margin-top:14px;padding:13px;border-radius:13px;
+    background:var(--bg2);border:1px dashed var(--line)}
+  .next .em{font-size:22px}
+  .next b{font-size:16px}
+  .timeline{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+  .tl{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:10px;padding:11px;border-radius:12px}
+  .tl:hover{background:var(--bg2)}
+  .tl .dot{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:15px;
+    background:var(--card);border:1px solid var(--line)}
+  .tl.done .dot{background:rgba(55,211,155,.15);border-color:transparent;color:var(--ok)}
+  .tl.next .dot{background:var(--grad);color:#fff;border-color:transparent;box-shadow:0 6px 16px rgba(108,140,255,.5)}
+  .tl .lb{font-weight:600}
+  .tl .lb small{display:block;color:var(--mut);font-weight:500;font-size:12px}
+  .tl .hr{font-weight:800;font-variant-numeric:tabular-nums;font-size:16px}
+  .tl .hr small{color:var(--mut);font-weight:600}
+  .metaBar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px;padding:12px 14px;
+    border-radius:13px;background:var(--bg2);border:1px solid var(--line)}
+  .kpi{display:flex;flex-direction:column;gap:3px}
+  .kpi .v{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+  .kpi .l{color:var(--mut);font-size:12px}
+  .toggle{position:relative;width:46px;height:27px;border-radius:999px;background:var(--line);transition:.2s;flex:none}
+  .toggle::after{content:"";position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#fff;transition:.2s}
+  .toggle.on{background:var(--ok)}
+  .toggle.on::after{left:22px}
+  .switchRow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .switchRow:last-child{border-bottom:0}
+  .switchRow .tx b{font-weight:700}
+  .switchRow .tx small{display:block;color:var(--mut);font-size:12px;margin-top:2px}
+
+  /* ---------- TABELAS ---------- */
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:11px 10px;border-bottom:1px solid var(--line);font-size:14px}
+  th{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+  td .b{font-variant-numeric:tabular-nums;font-weight:700}
+  .saldo.pos{color:var(--ok)} .saldo.neg{color:var(--bad)}
+  .doc{display:flex;align-items:center;gap:12px;padding:13px;border-radius:13px;background:var(--bg2);
+    border:1px solid var(--line);margin-bottom:8px}
+  .doc .ic{width:40px;height:40px;border-radius:11px;background:var(--card2);display:grid;place-items:center;font-size:18px}
+  .noti{display:flex;gap:12px;padding:13px;border-radius:13px;background:var(--bg2);border:1px solid var(--line);margin-bottom:8px}
+  .noti .dot{width:9px;height:9px;border-radius:50%;background:var(--pri);margin-top:6px;flex:none}
+  .noti.read .dot{background:var(--mut2)}
+  .cfgGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:640px){.cfgGrid{grid-template-columns:1fr}}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;
+    background:var(--card2);border:1px solid var(--line);box-shadow:var(--sh);padding:13px 18px;border-radius:14px;
+    transition:.25s;z-index:60;font-weight:600;max-width:90vw}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .banner{display:flex;gap:10px;align-items:center;padding:11px 14px;border-radius:12px;font-size:13px;font-weight:600;margin-bottom:14px}
+  .banner.demo{background:rgba(255,180,84,.12);color:var(--warn);border:1px solid rgba(255,180,84,.25)}
+</style>
+</head>
+<body>
+
+<!-- ========================= LOGIN ========================= -->
+<section id="login">
+  <div class="loginCard">
+    <div class="brand"><div class="logo">Pi</div><h1>Ponto<span>Imp</span></h1></div>
+    <div class="sub">Seu ponto, do seu jeito — sem hora extra à toa.</div>
+    <div class="field"><label>Empresa (banco)</label><input id="l_banco" placeholder="ex.: 127226" value="127226"></div>
+    <div class="row2">
+      <div class="field"><label>Tipo</label>
+        <select id="l_tipo"><option value="0">Nº Folha</option><option value="1">Identificador</option></select></div>
+      <div class="field"><label>Usuário</label><input id="l_user" placeholder="ex.: 60" value="60"></div>
+    </div>
+    <div class="field"><label>Senha</label><input id="l_pass" type="password" placeholder="sua senha"></div>
+    <button class="btn" onclick="doLogin()">Entrar</button>
+    <div class="divider">ou</div>
+    <button class="btn ok" onclick="demoLogin()">▶ Entrar em modo demonstração</button>
+    <div class="sub" style="margin:16px 0 0;font-size:12px">
+      Modo demo usa dados fictícios e não conecta a nada. Para dados reais, configure o
+      gateway em Ajustes depois de entrar.
+    </div>
+  </div>
+</section>
+
+<!-- ========================= APP ========================= -->
+<section id="app" class="hidden">
+  <aside id="side">
+    <div class="brand"><div class="logo">Pi</div><h1>Ponto<span>Imp</span></h1></div>
+    <nav class="nav" id="nav">
+      <a data-view="hoje" class="active"><span class="ic">🕘</span> Hoje</a>
+      <a data-view="espelho"><span class="ic">📋</span> Espelho</a>
+      <a data-view="banco"><span class="ic">⏱️</span> Fechamento do dia</a>
+      <a data-view="solic"><span class="ic">✉️</span> Solicitações</a>
+      <a data-view="docs"><span class="ic">📄</span> Documentos</a>
+      <a data-view="notif"><span class="ic">🔔</span> Notificações</a>
+      <a data-view="cfg"><span class="ic">⚙️</span> Ajustes</a>
+    </nav>
+    <div class="who">
+      <div class="nm" id="who_nm">—</div>
+      <div class="em" id="who_em">—</div>
+      <button class="btn ghost sm" style="margin-top:10px;width:100%" onclick="logout()">Sair</button>
+    </div>
+  </aside>
+
+  <main>
+    <div class="top">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="menuBtn" onclick="document.getElementById('side').classList.toggle('open')">☰</button>
+        <div><h2 id="v_title">Hoje</h2><div class="date" id="v_date"></div></div>
+      </div>
+      <div id="v_head"></div>
+    </div>
+    <div id="demoBanner" class="banner demo hidden">⚠️ Modo demonstração — dados fictícios.</div>
+    <div id="views"></div>
+  </main>
+</section>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =====================================================================
+   MOTOR — fechamento DIÁRIO, sem banco de horas (testado no Node — 17/17)
+   Alvo: ZERAR o dia. Passar da carga = hora extra (irreversível).
+   Faltar = desconto. Cada dia fecha em si mesmo.
+   ===================================================================== */
+const hm = (m)=>{m=Math.round(m);const h=Math.floor(m/60),x=((m%60)+60)%60;return String(h).padStart(2,'0')+':'+String(x).padStart(2,'0');};
+const toMin = (s)=>{ if(s==null||s==='')return null; const [h,m]=String(s).split(':').map(Number); return h*60+m; };
+
+function planejarDia(batidas, config){
+  const c = { cargaMin:492, entradaPadrao:'08:00', saidaAlmocoPadrao:'12:00',
+    almocoMin:108, almocoPiso:60, compensarAtrasoNoAlmoco:true, adiantamento:'sair_cedo',
+    metaSaida:null, toleranciaMin:0, ativo:true, ...config };
+  const E=toMin(batidas.entrada), A1=toMin(batidas.saidaAlmoco),
+        A2=toMin(batidas.voltaAlmoco), S=toMin(batidas.saida);
+  const carga=c.cargaMin, meta=toMin(c.metaSaida),
+        entradaPad=toMin(c.entradaPadrao), a1Pad=toMin(c.saidaAlmocoPadrao);
+  const avisos=[]; let estagio=0;
+  if(E!=null)estagio=1; if(A1!=null)estagio=2; if(A2!=null)estagio=3; if(S!=null)estagio=4;
+  const atrasoMin = E!=null?Math.max(0,E-entradaPad):0;
+  const adiantMin = E!=null?Math.max(0,entradaPad-E):0;
+  const eBase = E!=null?E:entradaPad;
+  // almoço planejado: parte do padrão e é ajustado pela chegada.
+  //  atrasado  -> encurta até o piso pra compensar; o que sobrar empurra a saída.
+  //  adiantado -> 'sair_cedo' (padrão) sai antes; 'almoco_maior' estica pra sair no horário.
+  let almoco=c.almocoMin, recuperado=0, restanteAtraso=0;
+  if(atrasoMin>0 && c.compensarAtrasoNoAlmoco){
+    const absorvivel=Math.max(0,c.almocoMin-c.almocoPiso);
+    recuperado=Math.min(atrasoMin,absorvivel);
+    restanteAtraso=atrasoMin-recuperado;
+    almoco=c.almocoMin-recuperado;
+  } else if(adiantMin>0 && c.adiantamento==='almoco_maior'){
+    almoco=c.almocoMin+adiantMin;
+  }
+  let plano={ entrada:batidas.entrada??c.entradaPadrao, saidaAlmoco:batidas.saidaAlmoco??c.saidaAlmocoPadrao,
+    voltaAlmoco:null, saida:null };
+  let alvoSaida=null, custoNaMeta={tipo:'zero',min:0};
+  if(estagio<=2){
+    const a1 = A1!=null?A1:Math.max(a1Pad,eBase);
+    const volta=a1+almoco, saida=volta+(carga-(a1-eBase));
+    alvoSaida=saida;
+    plano.saidaAlmoco = A1!=null?batidas.saidaAlmoco:hm(a1);
+    plano.voltaAlmoco = hm(volta);
+    plano.saida = hm(saida);
+  } else {
+    const manha=A1-E, tarde=carga-manha;
+    alvoSaida=A2+tarde; plano.voltaAlmoco=batidas.voltaAlmoco; plano.saida=hm(alvoSaida);
+  }
+  if(atrasoMin>0){
+    if(estagio<=2 && c.compensarAtrasoNoAlmoco){
+      avisos.push(restanteAtraso===0
+        ? `Entrou ${atrasoMin}min atrasado — recuperado no almoço (agora ${hm(almoco)}). Fecha no horário.`
+        : `Entrou ${atrasoMin}min atrasado — almoço no mínimo (${hm(almoco)}) e saída +${restanteAtraso}min.`);
+    } else if(estagio>=3) avisos.push(`Entrou ${atrasoMin}min atrasado.`);
+  } else if(adiantMin>0 && estagio<=2){
+    if(c.adiantamento==='almoco_maior'){
+      avisos.push(`Entrou ${adiantMin}min adiantado — almoço maior (${hm(almoco)}) pra sair no horário.`);
+      if(almoco>120) avisos.push(`Almoço acima de 2h — confira se sua empresa permite.`);
+    } else avisos.push(`Entrou ${adiantMin}min adiantado — você sai mais cedo hoje.`);
+  }
+  if(meta!=null && c.ativo && alvoSaida!=null){
+    const diff = meta - alvoSaida;
+    if(diff>0){ custoNaMeta={tipo:'extra',min:diff};
+      avisos.push(`O dia fecha ${hm(alvoSaida)}. Ficar até ${c.metaSaida} gera ${diff}min de hora extra (evite).`);
+    } else if(diff<0){ custoNaMeta={tipo:'desconto',min:-diff};
+      avisos.push(`O dia fecha ${hm(alvoSaida)}. Sair ${c.metaSaida} deixa ${-diff}min de desconto.`);
+    } else avisos.push(`Hoje você fecha exatamente na sua meta ${c.metaSaida}. 👌`); }
+  if(meta!=null && c.ativo && estagio===0)
+    avisos.push(`Pra sair ${c.metaSaida} fechando o dia, entre até ${hm(meta-carga-c.almocoMin)}.`);
+  let saldoRealizadoMin=null;
+  if(estagio===4){ const manha=A1-E, tarde=S-A2; saldoRealizadoMin=(manha+tarde)-carga; }
+  let proximaAcao;
+  if(estagio===0)proximaAcao={tipo:'bater_entrada',horario:plano.entrada};
+  else if(estagio===1)proximaAcao={tipo:'sair_almoco',horario:plano.saidaAlmoco};
+  else if(estagio===2)proximaAcao={tipo:'voltar_almoco',horario:plano.voltaAlmoco};
+  else if(estagio===3)proximaAcao={tipo:'bater_saida',horario:plano.saida};
+  else proximaAcao={tipo:'dia_fechado',horario:batidas.saida};
+  return { estagio, plano, alvoSaida:alvoSaida!=null?hm(alvoSaida):null, almocoPlanejado:almoco,
+    recuperado, restanteAtraso, custoNaMeta, atrasoMin, adiantMin, saldoRealizadoMin, proximaAcao, avisos };
+}
+
+function situacaoAgora(plan, agoraMin){
+  if(plan.estagio===4){
+    const s=plan.saldoRealizadoMin;
+    if(s>0) return {estado:'extra_fechado',min:s,txt:`Dia fechou com ${s}min de hora extra.`};
+    if(s<0) return {estado:'desconto_fechado',min:-s,txt:`Dia fechou com ${-s}min de desconto.`};
+    return {estado:'zerado',min:0,txt:'Dia fechou certinho — zero saldo. 🎯'};
+  }
+  const alvo=toMin(plan.alvoSaida);
+  if(plan.estagio===3 && alvo!=null){
+    const d=agoraMin-alvo;
+    if(d>0) return {estado:'em_extra',min:d,txt:`⚠️ Passou do horário — ${d}min de EXTRA acumulando. Bata a saída!`};
+    if(d>=-10) return {estado:'hora_de_sair',min:-d,txt:`Faltam ${-d}min pra saída exata (${plan.alvoSaida}).`};
+    return {estado:'trabalhando',min:-d,txt:`Saída exata hoje: ${plan.alvoSaida}.`};
+  }
+  return {estado:'em_dia',min:0,txt:`Saída prevista pra zerar o dia: ${plan.alvoSaida||'--:--'}.`};
+}
+
+/* =====================================================================
+   ESTADO
+   ===================================================================== */
+const LS='pontoimp.v1';
+const defState=()=>({
+  demo:true, gateway:'', token:'',
+  func:{ nome:'Dener Batista', email:'dener@impactaweb.com.br', empresa:'Impacta Soluções Web', funcao:'Desenvolvedor' },
+  cfg:{ cargaSegQui:492, cargaSex:432, entradaPadrao:'08:00', saidaAlmocoPadrao:'12:00', almocoMin:108,
+        almocoPiso:60, compensarAtrasoNoAlmoco:true, adiantamento:'sair_cedo',
+        metaSegQui:'', metaSex:'', toleranciaMin:5, ativo:true, alarmes:true, lembrarPonto:true },
+  hoje:{ data:hojeStr(), entrada:null, saidaAlmoco:null, voltaAlmoco:null, saida:null },
+  notifAlarmadas:{},
+});
+let S = load();
+function load(){ try{ const s=JSON.parse(localStorage.getItem(LS)); if(s&&s.cfg){ if(s.hoje.data!==hojeStr()) s.hoje=defState().hoje; return s;} }catch(e){} return defState(); }
+function save(){ localStorage.setItem(LS, JSON.stringify(S)); }
+function hojeStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function nowMin(){ const d=new Date(); return d.getHours()*60+d.getMinutes(); }
+function nowHM(){ const d=new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+// carga muda por dia: seg-qui 8h12, sexta 7h, fim de semana folga
+function diaSemana(){ return new Date().getDay(); }            // 0=dom .. 6=sáb
+function ehFolga(){ const d=diaSemana(); return d===0||d===6; }
+function cargaHojeMin(){ const d=diaSemana(); if(d===5) return S.cfg.cargaSex; if(d>=1&&d<=4) return S.cfg.cargaSegQui; return 0; }
+function nomeDiaCarga(){ const d=diaSemana(); if(d===5) return 'sexta'; if(d>=1&&d<=4) return 'seg–qui'; return 'fim de semana'; }
+function metaHoje(){ const d=diaSemana(); if(d===5) return S.cfg.metaSex; if(d>=1&&d<=4) return S.cfg.metaSegQui; return ''; }
+function cfgHoje(){ return {...S.cfg, cargaMin:cargaHojeMin(), metaSaida:metaHoje()}; }
+
+/* =====================================================================
+   DADOS DEMO (espelho, banco, solicitações, docs, notificações)
+   ===================================================================== */
+const DEMO = {
+  espelho:(()=>{ const dias=[]; const hoje=new Date(); const nomes=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+    for(let i=13;i>=0;i--){ const d=new Date(hoje); d.setDate(hoje.getDate()-i); const wd=d.getDay();
+      const fds= wd===0||wd===6; const dd=String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');
+      if(fds){ dias.push({data:dd,dia:nomes[wd],bat:[],saldo:0,fds:true}); continue; }
+      const atr=[0,0,0,5,12,0,3,0,20,0][i%10]; const ent=480+atr;
+      const bat=[hm(ent),'12:00','13:00',hm(ent+540-60)]; // fecha 8h
+      const saldo=[0,0,0,10,-5,0,0,15,-20,0,0,5,0,0][i]; dias.push({data:dd,dia:nomes[wd],bat,saldo,fds:false}); }
+    return dias; })(),
+  banco:{ saldo:'+03:45', mes:'+01:20', ontem:'00:00' },
+  solic:[ {t:'Ajuste de ponto',d:'12/08',st:'Pendente',cls:'warn'},
+          {t:'Férias — 02 a 16/09',d:'05/08',st:'Aprovada',cls:'ok'},
+          {t:'Abono — atestado',d:'28/07',st:'Aprovada',cls:'ok'} ],
+  docs:[ {n:'Holerite — Julho/2026',t:'PDF',ic:'🧾'}, {n:'Comprovante de ponto — Jul',t:'PDF',ic:'📑'},
+         {n:'Informe de rendimentos 2025',t:'PDF',ic:'📄'}, {n:'Espelho assinado — Jun',t:'PDF',ic:'✍️'} ],
+  notif:[ {t:'Seu espelho de julho está disponível para assinatura.',q:'há 2h',read:false},
+          {t:'Solicitação de férias aprovada.',q:'ontem',read:false},
+          {t:'Lembrete: bata o ponto de entrada.',q:'ontem',read:true} ],
+};
+
+/* =====================================================================
+   ROTEAMENTO / RENDER
+   ===================================================================== */
+const $=(s,r=document)=>r.querySelector(s);
+const el=(h)=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.firstChild;};
+let view='hoje', clockTimer=null;
+
+function go(v){ view=v; document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('active',a.dataset.view===v));
+  $('#side').classList.remove('open'); render(); }
+document.getElementById('nav').addEventListener('click',e=>{const a=e.target.closest('a');if(a)go(a.dataset.view);});
+
+const titles={hoje:'Hoje',espelho:'Espelho de ponto',banco:'Fechamento do dia',solic:'Solicitações',docs:'Documentos',notif:'Notificações',cfg:'Ajustes'};
+function render(){
+  $('#v_title').textContent=titles[view];
+  $('#v_date').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
+  $('#v_head').innerHTML='';
+  $('#demoBanner').classList.toggle('hidden',!S.demo);
+  const box=$('#views'); box.innerHTML='';
+  if(view==='hoje') box.appendChild(viewHoje());
+  if(view==='espelho') box.appendChild(viewEspelho());
+  if(view==='banco') box.appendChild(viewBanco());
+  if(view==='solic') box.appendChild(viewSolic());
+  if(view==='docs') box.appendChild(viewDocs());
+  if(view==='notif') box.appendChild(viewNotif());
+  if(view==='cfg') box.appendChild(viewCfg());
+}
+
+/* ---------- HOJE (o coração) ---------- */
+const LABELS={entrada:'Entrada',saidaAlmoco:'Saída p/ almoço',voltaAlmoco:'Volta do almoço',saida:'Saída'};
+const ORDER=['entrada','saidaAlmoco','voltaAlmoco','saida'];
+const ACAO_LB={bater_entrada:'Bater entrada',sair_almoco:'Sair para o almoço',voltar_almoco:'Voltar do almoço',bater_saida:'Bater saída',dia_fechado:'Dia completo'};
+const ACAO_EMOJI={bater_entrada:'🏢',sair_almoco:'🍽️',voltar_almoco:'💼',bater_saida:'🏁',dia_fechado:'✅'};
+
+function proximoCampo(){ for(const k of ORDER) if(!S.hoje[k]) return k; return null; }
+
+function viewHoje(){
+  if(ehFolga()){
+    return el(`<div class="card" style="text-align:center;padding:40px">
+      <div style="font-size:44px">🎉</div>
+      <h3 style="border:0">Hoje é folga</h3>
+      <p class="muted" style="margin:0">Sem carga horária no fim de semana. Bom descanso!</p></div>`);
+  }
+  const plan=planejarDia(S.hoje,cfgHoje());
+  const wrap=el('<div class="cards grid2"></div>');
+
+  // --- coluna esquerda: relógio + timeline
+  const left=el('<div class="cards"></div>');
+  const rel=el(`<div class="card">
+    <div class="clock"><div class="t" id="clk">${nowHM()}</div>
+      <div class="d">${new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}</div></div>
+  </div>`);
+  const campo=proximoCampo();
+  if(campo){
+    const btn=el(`<button class="punch">${ACAO_EMOJI[plan.proximaAcao.tipo]} Bater ${LABELS[campo].toLowerCase()} agora</button>`);
+    btn.onclick=()=>baterPonto(campo);
+    rel.appendChild(btn);
+    const p=plan.proximaAcao;
+    rel.appendChild(el(`<div class="next"><div class="em">${ACAO_EMOJI[p.tipo]}</div>
+      <div><div class="muted" style="font-size:12px">Próximo passo sugerido</div>
+      <b>${ACAO_LB[p.tipo]} — ${p.horario}</b></div></div>`));
+  } else {
+    rel.appendChild(el(`<div class="punch done">✅ Todos os pontos batidos hoje</div>`));
+  }
+  const sit=situacaoAgora(plan, nowMin());
+  const sitCls = (sit.estado==='em_extra'||sit.estado==='extra_fechado')?'bad'
+    : sit.estado==='desconto_fechado'?'warn'
+    : (sit.estado==='zerado'||sit.estado==='hora_de_sair')?'ok':'mut';
+  rel.appendChild(el(`<div class="pill ${sitCls}" style="width:100%;box-sizing:border-box;justify-content:center;margin-top:12px;padding:11px;white-space:normal;text-align:center">${sit.txt}</div>`));
+  left.appendChild(rel);
+
+  // timeline
+  const tl=el('<div class="card"><h3>Plano do dia</h3><div class="timeline"></div></div>');
+  const tlBox=tl.querySelector('.timeline');
+  ORDER.forEach(k=>{
+    const real=S.hoje[k], alvo=plan.plano[k];
+    const done=!!real, isNext=(k===campo);
+    const row=el(`<div class="tl ${done?'done':''} ${isNext?'next':''}">
+      <div class="dot">${done?'✓':(isNext?'→':'○')}</div>
+      <div class="lb">${LABELS[k]}<small>${done?'batido':(S.cfg.ativo?'sugerido pelo motor':'horário padrão')}</small></div>
+      <div class="hr">${real|| (alvo?('<small>'+alvo+'</small>'):'--:--')}</div></div>`);
+    tlBox.appendChild(row);
+  });
+  left.appendChild(tl);
+  wrap.appendChild(left);
+
+  // --- coluna direita: motor / meta / custo
+  const right=el('<div class="cards"></div>');
+  const cm = plan.custoNaMeta || {tipo:'zero',min:0};
+  const metaDia = metaHoje();
+  const metaPill = metaDia
+    ? (cm.tipo==='zero'?`<span class="pill ok">✓ meta ${metaDia} zera o dia</span>`
+      : cm.tipo==='extra'?`<span class="pill bad">meta gera +${cm.min}min extra</span>`
+      : `<span class="pill warn">meta gera −${cm.min}min desconto</span>`) : '';
+  const avisoCls=(a)=> a.includes('hora extra')||a.includes('EXTRA')?'bad' : a.includes('desconto')?'warn' : a.includes('👌')||a.includes('zera')?'ok':'warn';
+  const motor=el(`<div class="card">
+    <h3>Motor de fechamento diário</h3>
+    <div class="switchRow">
+      <div class="tx"><b>Ajudar a não gerar hora extra</b><small>recalcula almoço e saída pra fechar a carga exata (sem banco de horas)</small></div>
+      <div class="toggle ${S.cfg.ativo?'on':''}" id="tg_ativo"></div>
+    </div>
+    <div class="metaBar" style="margin-top:12px">
+      <div class="kpi"><span class="v">${plan.alvoSaida||'--:--'}</span><span class="l">saída exata (zera o dia)</span></div>
+      <div style="text-align:right">${metaPill}
+        <div class="muted" style="font-size:12px;margin-top:6px">carga ${hm(cargaHojeMin())} (${nomeDiaCarga()}) · almoço ${hm(S.cfg.almocoMin)}</div>
+      </div>
+    </div>
+    ${plan.avisos.length?`<div style="margin-top:12px;display:flex;flex-direction:column;gap:7px">
+      ${plan.avisos.map(a=>`<div class="pill ${avisoCls(a)}" style="white-space:normal;text-align:left">💡 ${a}</div>`).join('')}</div>`:''}
+  </div>`);
+  motor.querySelector('#tg_ativo').onclick=()=>{ S.cfg.ativo=!S.cfg.ativo; save(); toast(S.cfg.ativo?'Motor ativado':'Motor desativado'); render(); };
+  right.appendChild(motor);
+
+  // resumo rápido
+  const done=ORDER.filter(k=>S.hoje[k]).length;
+  const resumo=el(`<div class="card"><h3>Resumo de hoje</h3>
+    <div class="cards grid3">
+      <div class="kpi"><span class="v">${done}/4</span><span class="l">batidas</span></div>
+      <div class="kpi"><span class="v" style="color:${plan.atrasoMin>S.cfg.toleranciaMin?'var(--warn)':'var(--ok)'}">${plan.atrasoMin}min</span><span class="l">atraso entrada</span></div>
+      <div class="kpi"><span class="v">${metaHoje()||'--'}</span><span class="l">meta de hoje</span></div>
+    </div>
+    <button class="btn ghost sm" style="width:100%;margin-top:14px" onclick="resetHoje()">Limpar batidas de hoje (demo)</button>
+  </div>`);
+  right.appendChild(resumo);
+  wrap.appendChild(right);
+  return wrap;
+}
+
+function baterPonto(campo){
+  S.hoje[campo]=nowHM(); save();
+  toast(`✓ ${LABELS[campo]} registrada às ${S.hoje[campo]}`);
+  agendarAlarmes();
+  render();
+  // (modo real: aqui chamaríamos POST /me/ponto no gateway — ver conectarReal())
+}
+function resetHoje(){ S.hoje=defState().hoje; save(); toast('Batidas de hoje limpas'); agendarAlarmes(); render(); }
+
+/* ---------- ESPELHO ---------- */
+function viewEspelho(){
+  const real = !S.demo && S.realEspelho;
+  const fonte = real ? S.realEspelho.slice().reverse() : DEMO.espelho.slice().reverse();
+  const c=el(`<div class="card"><h3>${real?'Espelho do mês — real':'Últimos 14 dias (demo)'}</h3></div>`);
+  const t=el('<table><thead><tr><th>Dia</th><th>Batidas</th><th>Saldo</th></tr></thead><tbody></tbody></table>');
+  const tb=t.querySelector('tbody');
+  fonte.forEach(d=>{
+    let saldo, cls='';
+    if(real){ saldo = (d.fds && !d.bat.length)?'—':(d.saldoStr||'—'); }
+    else { saldo = d.fds?'—':(d.saldo===0?'00:00':(d.saldo>0?'+':'-')+hm(Math.abs(d.saldo))); cls=d.saldo>0?'pos':d.saldo<0?'neg':''; }
+    tb.appendChild(el(`<tr>
+      <td><b>${d.data}</b> <span class="muted">${d.dia}</span></td>
+      <td class="b">${(!d.bat||!d.bat.length)?'<span class="muted">'+(d.fds?'folga':'—')+'</span>':d.bat.join('  ·  ')}</td>
+      <td class="b saldo ${cls}">${saldo}</td></tr>`));
+  });
+  c.appendChild(t);
+  if(real) c.appendChild(el('<p class="muted" style="font-size:12px;margin:10px 0 0">Dados reais do seu ponto no Secullum, via gateway local.</p>'));
+  return c;
+}
+
+/* ---------- BANCO ---------- */
+function viewBanco(){
+  const w=el('<div class="cards"></div>');
+  if(ehFolga()){
+    w.appendChild(el(`<div class="card"><h3>Hoje</h3><p class="muted" style="margin:0">Fim de semana — sem carga horária.</p></div>`));
+  } else {
+    const plan=planejarDia(S.hoje,cfgHoje());
+    const sit=situacaoAgora(plan,nowMin());
+    const cls=sit.estado.includes('extra')?'bad':sit.estado.includes('desconto')?'warn':'ok';
+    w.appendChild(el(`<div class="card"><h3>Fechamento de hoje (${nomeDiaCarga()})</h3>
+      <div class="cards grid3">
+        <div class="kpi"><span class="v">${hm(cargaHojeMin())}</span><span class="l">carga de hoje</span></div>
+        <div class="kpi"><span class="v">${plan.alvoSaida||'--:--'}</span><span class="l">saída que zera</span></div>
+        <div class="kpi"><span class="v">${hm(S.cfg.almocoMin)}</span><span class="l">almoço fixo</span></div>
+      </div>
+      <div class="pill ${cls}" style="margin-top:12px;white-space:normal">${sit.txt}</div></div>`));
+  }
+  w.appendChild(el(`<div class="card"><h3>Sua regra: cada dia fecha em si</h3>
+    <p class="muted" style="margin:0 0 12px">Sem banco de horas. O alvo é <b>zerar todo dia</b>:
+    passar da carga vira hora extra (que você paga e não quer), faltar vira desconto. O motor
+    calcula a saída exata e te avisa pra fechar no ponto.</p>
+    <div class="cards grid3">
+      <div class="kpi"><span class="v" style="color:var(--ok);font-size:16px">seg–qui</span><span class="l">${hm(S.cfg.cargaSegQui)} + ${hm(S.cfg.almocoMin)} almoço → sai 18:00</span></div>
+      <div class="kpi"><span class="v" style="color:var(--pri);font-size:16px">sexta</span><span class="l">${hm(S.cfg.cargaSex)} de carga → sai mais cedo</span></div>
+      <div class="kpi"><span class="v muted" style="font-size:16px">sáb/dom</span><span class="l">folga</span></div>
+    </div></div>`));
+  const dias=DEMO.espelho.filter(d=>!d.fds);
+  const zerou=dias.filter(d=>d.saldo===0).length, ex=dias.filter(d=>d.saldo>0).length, de=dias.filter(d=>d.saldo<0).length;
+  w.appendChild(el(`<div class="card"><h3>Últimos dias úteis (demo)</h3>
+    <div class="cards grid3">
+      <div class="kpi"><span class="v" style="color:var(--ok)">${zerou}</span><span class="l">fecharam certo</span></div>
+      <div class="kpi"><span class="v" style="color:var(--bad)">${ex}</span><span class="l">com hora extra</span></div>
+      <div class="kpi"><span class="v" style="color:var(--warn)">${de}</span><span class="l">com desconto</span></div>
+    </div></div>`));
+  return w;
+}
+
+/* ---------- SOLICITAÇÕES ---------- */
+function viewSolic(){
+  const c=el('<div class="card"><h3>Minhas solicitações</h3></div>');
+  DEMO.solic.forEach(s=>c.appendChild(el(`<div class="doc">
+    <div class="ic">✉️</div><div style="flex:1"><b>${s.t}</b><div class="muted" style="font-size:12px">enviada em ${s.d}</div></div>
+    <span class="pill ${s.cls}">${s.st}</span></div>`)));
+  c.appendChild(el('<button class="btn sm" style="margin-top:10px" onclick="toast(\'Em modo demo — no real abre o formulário de solicitação\')">+ Nova solicitação</button>'));
+  return c;
+}
+
+/* ---------- DOCUMENTOS ---------- */
+function viewDocs(){
+  const c=el('<div class="card"><h3>Meus documentos</h3></div>');
+  DEMO.docs.forEach(d=>c.appendChild(el(`<div class="doc">
+    <div class="ic">${d.ic}</div><div style="flex:1"><b>${d.n}</b><div class="muted" style="font-size:12px">${d.t}</div></div>
+    <button class="btn ghost sm" onclick="toast('Em modo demo — no real baixa via gateway (proxy)')">Baixar</button></div>`)));
+  return c;
+}
+
+/* ---------- NOTIFICAÇÕES ---------- */
+function viewNotif(){
+  const c=el('<div class="card"><h3>Notificações</h3></div>');
+  DEMO.notif.forEach(n=>c.appendChild(el(`<div class="noti ${n.read?'read':''}">
+    <div class="dot"></div><div style="flex:1"><div>${n.t}</div><div class="muted" style="font-size:12px;margin-top:3px">${n.q}</div></div></div>`)));
+  return c;
+}
+
+/* ---------- AJUSTES ---------- */
+function viewCfg(){
+  const g=S; const c=el('<div class="cards"></div>');
+  // motor
+  const m=el(`<div class="card"><h3>Jornada e motor</h3>
+    <div class="cfgGrid">
+      <div class="field"><label>Carga seg–qui (hh:mm)</label><input id="c_cargaSQ" value="${hm(g.cfg.cargaSegQui)}"></div>
+      <div class="field"><label>Carga sexta (hh:mm)</label><input id="c_cargaSex" value="${hm(g.cfg.cargaSex)}"></div>
+      <div class="field"><label>Almoço (hh:mm, fixo)</label><input id="c_almoco" value="${hm(g.cfg.almocoMin)}"></div>
+      <div class="field"><label>Entrada padrão</label><input id="c_ent" value="${g.cfg.entradaPadrao}"></div>
+      <div class="field"><label>Saída p/ almoço padrão</label><input id="c_alm" value="${g.cfg.saidaAlmocoPadrao}"></div>
+      <div class="field"><label>Meta saída seg–qui (opcional)</label><input id="c_metaSQ" value="${g.cfg.metaSegQui||''}" placeholder="ex.: 18:00"></div>
+      <div class="field"><label>Meta saída sexta (opcional)</label><input id="c_metaSex" value="${g.cfg.metaSex||''}" placeholder="ex.: 17:00"></div>
+      <div class="field"><label>Tolerância de atraso (min)</label><input id="c_tol" value="${g.cfg.toleranciaMin}"></div>
+    </div>
+    <div class="switchRow"><div class="tx"><b>Ajudar a não gerar hora extra</b><small>calcula a saída exata que zera o dia</small></div>
+      <div class="toggle ${g.cfg.ativo?'on':''}" id="c_ativo"></div></div>
+    <div class="switchRow"><div class="tx"><b>Atraso: recuperar no almoço</b><small>encurta o almoço (até 1h) pra sair no horário; o resto empurra a saída</small></div>
+      <div class="toggle ${g.cfg.compensarAtrasoNoAlmoco?'on':''}" id="c_compAtraso"></div></div>
+    <div class="field" style="margin-top:10px"><label>Ao chegar adiantado</label>
+      <select id="c_adiant">
+        <option value="sair_cedo" ${g.cfg.adiantamento==='sair_cedo'?'selected':''}>Sair mais cedo</option>
+        <option value="almoco_maior" ${g.cfg.adiantamento==='almoco_maior'?'selected':''}>Fazer almoço maior (sair no horário)</option>
+      </select></div>
+    <div class="switchRow"><div class="tx"><b>Alarmes de ponto</b><small>avisa 5 min antes e na hora de cada batida</small></div>
+      <div class="toggle ${g.cfg.alarmes?'on':''}" id="c_alarmes"></div></div>
+    <button class="btn" style="margin-top:14px" onclick="salvarCfg()">Salvar ajustes</button>
+    <p class="muted" style="font-size:12px;margin:12px 0 0">A carga e o horário também podem vir automáticos da Secullum (cadastro de horário do funcionário) quando conectar ao gateway.</p>
+  </div>`);
+  m.querySelector('#c_ativo').onclick=(e)=>e.currentTarget.classList.toggle('on');
+  m.querySelector('#c_compAtraso').onclick=(e)=>e.currentTarget.classList.toggle('on');
+  m.querySelector('#c_alarmes').onclick=(e)=>{e.currentTarget.classList.toggle('on'); if(e.currentTarget.classList.contains('on'))pedirPermissao();};
+  c.appendChild(m);
+
+  // conexão real
+  const cn=el(`<div class="card"><h3>Dados reais (gateway)</h3>
+    <p class="muted" style="margin:0 0 12px">Modo demo usa dados fictícios. Para puxar seu ponto real,
+    aponte para o gateway PontoImp rodando (ele fala com o backend da Secullum).</p>
+    <div class="field"><label>URL do gateway</label><input id="c_gw" value="${g.gateway||''}" placeholder="http://localhost:3333"></div>
+    <button class="btn ghost sm" onclick="toast('Protótipo: a conexão real usa o gateway em /gateway. Ver ARQUITETURA.md')">Testar conexão</button>
+  </div>`);
+  c.appendChild(cn);
+  return c;
+}
+function salvarCfg(){
+  const v=(id)=>$('#'+id).value.trim();
+  S.cfg.cargaSegQui=toMin(v('c_cargaSQ'))||492;
+  S.cfg.cargaSex=toMin(v('c_cargaSex'))||420;
+  S.cfg.almocoMin=toMin(v('c_almoco'))||108;
+  S.cfg.entradaPadrao=v('c_ent')||'08:00';
+  S.cfg.saidaAlmocoPadrao=v('c_alm')||'12:00';
+  S.cfg.metaSegQui=v('c_metaSQ')||'';
+  S.cfg.metaSex=v('c_metaSex')||'';
+  S.cfg.toleranciaMin=parseInt(v('c_tol'))||0;
+  S.cfg.ativo=$('#c_ativo').classList.contains('on');
+  S.cfg.compensarAtrasoNoAlmoco=$('#c_compAtraso').classList.contains('on');
+  S.cfg.adiantamento=$('#c_adiant').value;
+  S.cfg.alarmes=$('#c_alarmes').classList.contains('on');
+  const gw=$('#c_gw'); if(gw) S.gateway=gw.value.trim();
+  save(); toast('✓ Ajustes salvos'); agendarAlarmes(); go('hoje');
+}
+
+/* =====================================================================
+   ALARMES (Notification API + beep) e LEMBRETES
+   ===================================================================== */
+let alarmTimers=[];
+function pedirPermissao(){ if('Notification'in window && Notification.permission==='default') Notification.requestPermission(); }
+function beep(){ try{ const a=new (window.AudioContext||window.webkitAudioContext)();
+  const o=a.createOscillator(),g=a.createGain(); o.connect(g);g.connect(a.destination);
+  o.type='sine';o.frequency.value=880;g.gain.setValueAtTime(.001,a.currentTime);
+  g.gain.exponentialRampToValueAtTime(.3,a.currentTime+.02);
+  g.gain.exponentialRampToValueAtTime(.001,a.currentTime+.6); o.start();o.stop(a.currentTime+.6);}catch(e){} }
+function notificar(titulo,corpo){
+  beep();
+  if('Notification'in window && Notification.permission==='granted') new Notification(titulo,{body:corpo,icon:''});
+  else toast(titulo+' — '+corpo);
+}
+function agendarAlarmes(){
+  alarmTimers.forEach(t=>clearTimeout(t)); alarmTimers=[];
+  if(!S.cfg.alarmes || ehFolga()) return;
+  const plan=planejarDia(S.hoje,cfgHoje());
+  const campo=proximoCampo(); if(!campo) return;
+  const alvo=toMin(plan.proximaAcao.horario); if(alvo==null) return;
+  const delta=alvo-nowMin();
+  const msg=ACAO_LB[plan.proximaAcao.tipo];
+  // alarme no horário e 5 min antes
+  [ [delta-5,`Faltam 5 min: ${msg} (${plan.proximaAcao.horario})`],
+    [delta,  `Hora de ${msg.toLowerCase()} — ${plan.proximaAcao.horario}`] ].forEach(([d,txt])=>{
+    if(d>0 && d<24*60) alarmTimers.push(setTimeout(()=>notificar('PontoImp',txt), d*60000));
+  });
+}
+
+/* =====================================================================
+   LOGIN / SESSÃO / INTEGRAÇÃO REAL (via gateway local)
+   ===================================================================== */
+function gwUrl(){ return (S.gateway||'http://localhost:3333').replace(/\/$/,''); }
+function api(path){ return fetch(gwUrl()+path,{headers:{'Authorization':'Bearer '+S.token}}); }
+function mapFunc(f){ if(!f) return S.func;
+  return { nome:f.nome||'(sem nome)', email:f.email||'', empresa:f.empresa||'', funcao:f.funcao||'', _raw:f }; }
+function normalizaEspelho(data){
+  const lista=(data&&(data.lista||data.Lista))||[];
+  const nomes=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  return lista.map(d=>{
+    const raw=d.data||d.Data; const dt=raw?new Date(raw):null;
+    const iso=dt?dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'):'';
+    const bat=((d.batidas||d.Batidas||[]).map(b=>String(b.valor||b.Valor||'').slice(0,5)).filter(Boolean));
+    return { iso, data:dt?String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0'):'',
+      dia:dt?nomes[dt.getDay()]:'', bat, saldoStr:d.saldo||d.Saldo||'', fds:dt?(dt.getDay()===0||dt.getDay()===6):false };
+  });
+}
+async function carregarReal(){
+  const h=new Date(),y=h.getFullYear(),m=h.getMonth();
+  const ini=`${y}-${String(m+1).padStart(2,'0')}-01`;
+  const ult=new Date(y,m+1,0).getDate();
+  const fim=`${y}-${String(m+1).padStart(2,'0')}-${String(ult).padStart(2,'0')}`;
+  try{
+    const r=await api(`/me/espelho?inicio=${ini}&fim=${fim}`);
+    const txt=await r.text(); let data=null; try{data=JSON.parse(txt);}catch{}
+    if(!r.ok){ toast('Logado, mas o espelho voltou '+r.status); return; }
+    if(data){ S.realEspelho=normalizaEspelho(data);
+      const dia=(S.realEspelho||[]).find(d=>d.iso===hojeStr());
+      if(dia) S.hoje={ data:hojeStr(), entrada:dia.bat[0]||null, saidaAlmoco:dia.bat[1]||null,
+        voltaAlmoco:dia.bat[2]||null, saida:dia.bat[3]||null };
+      save(); render(); toast('✓ Espelho real carregado');
+    }
+  }catch(e){ toast('Falhou ao ler espelho: '+(e.message||e)); }
+}
+async function doLogin(){
+  const banco=$('#l_banco').value.trim(), usuario=$('#l_user').value.trim(),
+        senha=$('#l_pass').value, tipo=$('#l_tipo').value==='1'?'identificador':'folha';
+  if(!banco||!usuario||!senha){ toast('Preencha empresa, usuário e senha'); return; }
+  toast('Conectando ao Secullum…');
+  let r; try{
+    r=await fetch(gwUrl()+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({banco,usuario,senha,tipo})});
+  }catch(e){ toast('Gateway não respondeu em '+gwUrl()+' — ele está rodando?'); return; }
+  let data={}; try{data=await r.json();}catch{}
+  if(!r.ok){ toast(data.erro||('Erro '+r.status)); return; }
+  S.demo=false; S.token=data.token; S.func=mapFunc(data.func); S.realEspelho=null; save();
+  enterApp(); toast('Conectado como '+(S.func.nome||'você'));
+  carregarReal();
+}
+function demoLogin(){ S=defState(); S.demo=true; S.realEspelho=null; save(); enterApp(); toast('Bem-vindo ao modo demonstração'); }
+function enterApp(){
+  $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
+  $('#who_nm').textContent=S.func.nome; $('#who_em').textContent=S.func.empresa;
+  pedirPermissao(); agendarAlarmes(); go('hoje');
+  if(clockTimer)clearInterval(clockTimer);
+  clockTimer=setInterval(()=>{ const c=$('#clk'); if(c)c.textContent=nowHM(); },1000*20);
+}
+function logout(){ if(clockTimer)clearInterval(clockTimer); $('#app').classList.add('hidden'); $('#login').classList.remove('hidden'); }
+
+/* =====================================================================
+   UTIL
+   ===================================================================== */
+let toastT=null;
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2600); }
+
+// auto-entra se já havia sessão demo salva
+if(localStorage.getItem(LS)){ /* fica no login por padrão; usuário escolhe */ }
+</script>
+</body>
+</html>
