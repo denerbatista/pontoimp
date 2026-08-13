@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <title>PontoImp</title>
 <link rel="manifest" href="manifest.webmanifest" />
-<link rel="icon" href="icon-192.png" />
-<link rel="apple-touch-icon" href="icon-192.png" />
+<link rel="icon" href="icon-192-v2.png" />
+<link rel="apple-touch-icon" href="icon-192-v2.png" />
 <style>
   :root{
     --bg:#0f1220; --bg2:#151a2e; --card:#1b2138; --card2:#212a47;
@@ -160,7 +160,7 @@
 <!-- ========================= LOGIN ========================= -->
 <section id="login">
   <div class="loginCard">
-    <div class="brand"><img class="logo" src="icon-192.png" alt=""><h1>Ponto<span>Imp</span></h1></div>
+    <div class="brand"><img class="logo" src="icon-192-v2.png" alt=""><h1>Ponto<span>Imp</span></h1></div>
     <div class="sub">Sentinela do seu ponto Secullum — zero extra, zero desconto.</div>
     <div class="field"><label>Empresa (banco)</label><input id="l_banco" placeholder="nº da empresa" autocomplete="off" inputmode="numeric"></div>
     <div class="row2">
@@ -181,7 +181,7 @@
 <section id="app" class="hidden">
   <div class="hd">
     <div class="brand" onclick="go('hoje')" title="Voltar ao início">
-      <img class="logo" src="icon-192.png" alt=""><h1>Ponto<span>Imp</span></h1></div>
+      <img class="logo" src="icon-192-v2.png" alt=""><h1>Ponto<span>Imp</span></h1></div>
     <span class="pill mut" id="syncPill">—</span>
     <button class="iconBtn" onclick="sincronizar(false)" title="Atualizar do Secullum agora">⟳</button>
   </div>
@@ -721,11 +721,11 @@ async function notificar(titulo,corpo,tag,nivel){
   if(alarme) dispararAlarme(titulo,corpo); else beep();
   try{
     if('Notification'in window&&Notification.permission==='granted'){
-      const opts={body:corpo,icon:'icon-192.png',badge:'icon-192.png',tag:tag||titulo,renotify:true,
+  const opts={body:corpo,icon:'icon-192-v2.png',badge:'icon-192-v2.png',tag:tag||titulo,renotify:true,
         requireInteraction:alarme,vibrate:alarme?[420,140,420,140,420,140,420]:[200]};
       const reg=('serviceWorker'in navigator)?await navigator.serviceWorker.getRegistration():null;
       if(reg&&reg.showNotification) reg.showNotification(titulo,opts);
-      else new Notification(titulo,{body:corpo,icon:'icon-192.png'});
+  else new Notification(titulo,{body:corpo,icon:'icon-192-v2.png'});
     }
   }catch(e){}
   toast(titulo+' — '+corpo);
