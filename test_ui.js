@@ -131,6 +131,43 @@ const server = http.createServer((req,res)=>{
       await page.waitForTimeout(150);
       check('botão instalar explica o caminho',
         /instal|tela inicial|menu/i.test(await page.locator('#toast').textContent()||''));
+
+      // agenda mandada ao serviço de push: é ela que faz o aviso chegar com o app fechado.
+      // Os eventos reais dependem da hora do dia, então fixamos os horários pra não flutuar.
+      const ag = await page.evaluate(()=>{
+        const orig=window.eventosDoDia;
+        const d=new Date(), agoraMin=d.getHours()*60+d.getMinutes();
+        window.eventosDoDia=()=>[
+          { chave:'futuro', min:Math.min(agoraMin+30,1439), titulo:'🏁 SAIA AGORA', corpo:'18:00', nivel:'alarme' },
+          { chave:'passado', min:Math.max(agoraMin-30,0), titulo:'já era', corpo:'x' },
+          { chave:'semhora', min:null, titulo:'sem horário', corpo:'y' },
+        ];
+        const r=agendaDeHoje();
+        window.eventosDoDia=orig;
+        const meiaNoite=new Date(); meiaNoite.setHours(0,0,0,0);
+        return { r, base:meiaNoite.getTime(), agoraMin };
+      });
+      check('agenda leva só o evento que ainda vai acontecer',
+        ag.r.length===1 && ag.r[0].chave.endsWith('|futuro'));
+      check('evento sem horário é descartado', !ag.r.some(e=>e.chave.endsWith('|semhora')));
+      check('vai em timestamp absoluto, não em minutos',
+        ag.r[0].ts === ag.base + Math.min(ag.agoraMin+30,1439)*60000);
+      check('chave é prefixada pela data pra não colidir entre dias',
+        /^\d{4}-\d{2}-\d{2}\|futuro$/.test(ag.r[0].chave));
+      check('nível alarme sobrevive até o servidor', ag.r[0].nivel==='alarme');
+
+      const semAlarme = await page.evaluate(()=>{
+        const antes=S.cfg.alarmes; S.cfg.alarmes=false;
+        const a=agendaDeHoje(); S.cfg.alarmes=antes; return a;
+      });
+      check('alarmes desligados esvaziam a agenda', semAlarme.length===0);
+
+      check('não posta agenda sem estar inscrito', await page.evaluate(async()=>{
+        S.pushInscrito=false; return (await enviarAgenda())===false;
+      }));
+
+      check('campo da URL de push aparece nos ajustes',
+        (await page.locator('#c_push').count())===1);
     } else {
       check('tela de folga no fim de semana', (await page.textContent('body')).includes('folga'));
     }

@@ -1,0 +1,23 @@
+name = "pontoimp-push"
+main = "src/index.mjs"
+compatibility_date = "2026-08-01"
+
+# entrega os avisos que venceram no último minuto
+[triggers]
+crons = ["* * * * *"]
+
+# guarda inscrição + agenda do dia. Crie com:
+#   npx wrangler kv namespace create PUSH
+# e cole o id devolvido aqui.
+[[kv_namespaces]]
+binding = "PUSH"
+id = "COLE_O_ID_DO_KV_AQUI"
+
+[vars]
+VAPID_ASSUNTO = "mailto:dener@impactaweb.com.br"
+ORIGEM_PERMITIDA = "https://denerbatista.github.io"
+
+# VAPID_PUBLICA e VAPID_PRIVADA entram como secret, nunca aqui:
+#   node gerar-chaves.mjs
+#   npx wrangler secret put VAPID_PUBLICA
+#   npx wrangler secret put VAPID_PRIVADA

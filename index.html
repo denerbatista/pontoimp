@@ -332,7 +332,7 @@ const LS='pontoimp.v2';
 const defHoje=()=>({ data:hojeStr(), entrada:null, saidaAlmoco:null, voltaAlmoco:null, saida:null,
   almocoPrevisto:null, snoozeAte:null, perguntaFeita:false, metaHoje:'' });
 const defState=()=>({
-  gateway:'',
+  gateway:'', push:'', pushInscrito:false,
   auth:{banco:'',tipo:'0',usuario:'',senha:'',token:'',lembrar:true},
   func:{nome:'',empresa:''},
   cfg:{ cargaSegQui:492, cargaSex:432, entradaPadrao:'08:00', saidaAlmocoPadrao:'12:00', almocoMin:108,
@@ -380,6 +380,7 @@ function cfgHoje(){ return {...S.cfg, cargaMin:cargaHojeMin(), metaSaida:(S.hoje
    GATEWAY (Secullum) — o app NÃO bate ponto: só lê e vigia
    ===================================================================== */
 function gwUrl(){ return (S.gateway||'https://pontoimp-gateway.dener70.workers.dev').replace(/\/$/,''); }
+function pushUrl(){ return (S.push||'https://pontoimp-push.dener70.workers.dev').replace(/\/$/,''); }
 function api(path){ return fetch(gwUrl()+path,{headers:{'Authorization':'Bearer '+S.auth.token}}); }
 function normalizaEspelho(data){
   const lista=(data&&(data.lista||data.Lista))||[];
@@ -450,6 +451,7 @@ async function sincronizar(silencioso=true){
     const mudou=detectarMudancas(novas);
     Object.assign(S.hoje,novas);
     S.ultimaSyncMs=Date.now(); save(); setSync('ok');
+    enviarAgenda(); // o plano pode ter mudado com a batida nova
     if(!silencioso) toast('✓ Atualizado do Secullum');
     if(mudou||!silencioso) render();
   } finally { syncing=false; }
@@ -548,12 +550,95 @@ function porQueSemNotificacao(){
   if(Notification.permission==='denied') return 'Notificações bloqueadas. Libere nas permissões do site — daqui não dá pra perguntar de novo.';
   return null;
 }
+/* ---------- push do servidor: o aviso chega com o app fechado ---------- */
+function b64urlParaBytes(s){
+  s=String(s).replace(/-/g,'+').replace(/_/g,'/'); while(s.length%4) s+='=';
+  const bin=atob(s), out=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i);
+  return out;
+}
+async function inscricaoPush(){
+  if(!('serviceWorker'in navigator)||!('PushManager'in window)) return null;
+  const reg=await navigator.serviceWorker.ready;
+  return reg.pushManager.getSubscription();
+}
+/* Avisos de hoje em timestamp absoluto: o Worker não precisa saber
+   nada de fuso nem das regras de ponto, só entregar na hora. */
+function agendaDeHoje(){
+  if(!S.cfg.alarmes||ehFolga()) return [];
+  const plan=planejarDia(S.hoje,cfgHoje());
+  const meiaNoite=new Date(); meiaNoite.setHours(0,0,0,0);
+  const limite=Date.now()-60000;
+  return eventosDoDia(plan).filter(e=>e.min!=null)
+    .map(e=>({ ts:meiaNoite.getTime()+e.min*60000, chave:hojeStr()+'|'+e.chave,
+               titulo:e.titulo, corpo:e.corpo, nivel:e.nivel==='alarme'?'alarme':'aviso' }))
+    .filter(e=>e.ts>limite);
+}
+let ultimaAgenda=''; // evita repostar a mesma agenda a cada sincronização
+async function enviarAgenda(inscricao,forcar){
+  if(!S.pushInscrito) return false;
+  try{
+    const i=inscricao||await inscricaoPush();
+    if(!i) return false;
+    const agenda=agendaDeHoje();
+    const marca=JSON.stringify(agenda.map(e=>e.chave+'@'+e.ts));
+    if(!forcar&&marca===ultimaAgenda) return true;
+    const r=await fetch(pushUrl()+'/push/agenda',{ method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ inscricao:i.toJSON(), agenda }) });
+    if(r.ok) ultimaAgenda=marca;
+    return r.ok;
+  }catch(e){ return false; }
+}
+async function assinarPush(){
+  const motivo=porQueSemNotificacao();
+  if(motivo) return toast(motivo),false;
+  if(!('PushManager'in window)) return toast('Este navegador não suporta push.'),false;
+  if(Notification.permission!=='granted'){ await pedirPermissao(); if(Notification.permission!=='granted') return false; }
+  try{
+    const r=await fetch(pushUrl()+'/push/chave');
+    if(!r.ok) return toast('Serviço de push fora do ar ('+r.status+').'),false;
+    const { publica }=await r.json();
+    if(!publica) return toast('O serviço de push está sem chave VAPID configurada.'),false;
+    const reg=await navigator.serviceWorker.ready;
+    const insc=(await reg.pushManager.getSubscription())
+      || await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:b64urlParaBytes(publica) });
+    // o service worker lê isto se o navegador trocar a inscrição sozinho
+    try{ const c=await caches.open('pontoimp-cfg'); await c.put('./__push_url', new Response(pushUrl())); }catch(e){}
+    S.pushInscrito=true; save();
+    const ok=await enviarAgenda(insc);
+    toast(ok?'✓ Push ligado — te aviso com o app fechado.':'Inscrito, mas o servidor não aceitou a agenda.');
+    atualizarDiagNotif();
+    return ok;
+  }catch(e){ toast('Não deu pra ligar o push: '+(e.message||e)); return false; }
+}
+async function cancelarPush(){
+  try{
+    const i=await inscricaoPush();
+    if(i){
+      await fetch(pushUrl()+'/push/cancelar',{ method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ endpoint:i.endpoint }) }).catch(()=>{});
+      await i.unsubscribe();
+    }
+  }catch(e){}
+  S.pushInscrito=false; save(); atualizarDiagNotif(); toast('Push desligado.');
+}
+async function testarPush(){
+  const i=await inscricaoPush();
+  if(!i) return toast('Ligue o push primeiro.');
+  try{
+    const r=await fetch(pushUrl()+'/push/teste',{ method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ inscricao:i.toJSON() }) });
+    toast(r.ok?'Enviado — deve chegar em segundos.':'O servidor recusou ('+r.status+').');
+  }catch(e){ toast('Não conectou no serviço de push.'); }
+}
+
 function diagNotifTexto(){
   const motivo=porQueSemNotificacao();
   if(motivo) return '⚠️ '+motivo;
-  return Notification.permission==='granted'
-    ? '✓ Notificações liberadas'+(ehInstalado()?' e app instalado.':'. Instale na tela inicial pra ficar melhor.')
-    : 'Toque em “Ativar notificações” e escolha Permitir.';
+  if(Notification.permission!=='granted') return 'Toque em “Ativar notificações” e escolha Permitir.';
+  if(S.pushInscrito) return '✓ Push ligado — os avisos chegam mesmo com o app fechado.';
+  return '✓ Notificações liberadas, mas só tocam com o app aberto. '
+    +'Ligue o push pra receber com o app fechado.';
 }
 function atualizarDiagNotif(){ const p=$('#diagNotif'); if(p) p.textContent=diagNotifTexto(); }
 function pedirPermissaoSilenciosa(){ // no login: só pergunta, sem reclamar na tela
@@ -856,11 +941,17 @@ function viewCfg(){
       <button class="btn ghost sm" style="width:100%" onclick="pedirPermissao()">🔔 Ativar notificações</button>
       <button class="btn ghost sm" style="width:100%" onclick="instalarApp()">📲 Instalar no celular</button>
     </div>
+    <div class="row2" style="margin-top:8px">
+      <button class="btn ghost sm" style="width:100%" id="b_push"
+        onclick="${g.pushInscrito?'cancelarPush()':'assinarPush()'}">${g.pushInscrito?'📡 Desligar push':'📡 Avisar com o app fechado'}</button>
+      <button class="btn ghost sm" style="width:100%" onclick="testarPush()">✉️ Testar push</button>
+    </div>
     <p class="muted" id="diagNotif" style="font-size:12px;margin:12px 0 0">${diagNotifTexto()}</p>
     <p class="muted" style="font-size:12px;margin:6px 0 0">Os alarmes tocam com o app aberto — pode estar em segundo plano. Instalado na tela inicial fica melhor ainda.</p>
   </div>`);
   const cn=el(`<div class="card"><h3>Conexão</h3>
     <div class="field"><label>URL do gateway</label><input id="c_gw" value="${g.gateway||''}" placeholder="https://pontoimp-gateway.dener70.workers.dev"></div>
+    <div class="field"><label>URL do serviço de push</label><input id="c_push" value="${g.push||''}" placeholder="https://pontoimp-push.dener70.workers.dev"></div>
     <button class="btn ghost sm" onclick="testarGateway()">Testar conexão</button>
     <p class="muted" style="font-size:12px;margin:12px 0 0">Conectado como <b>${g.func.nome||'—'}</b>${g.func.empresa?' · '+g.func.empresa:''}. Seu login fica salvo só neste aparelho.</p>
     <button class="btn ghost sm" style="margin-top:10px;color:var(--bad)" onclick="logout()">Sair e limpar sessão</button>
@@ -886,7 +977,7 @@ function salvarCfg(){
   S.cfg.alarmes=$('#c_alarmes').classList.contains('on');
   S.cfg.modoAlarme=$('#c_modoAlarme').classList.contains('on');
   S.cfg.pollMin=Math.max(1,parseInt(v('c_poll'))||3);
-  S.gateway=v('c_gw');
+  S.gateway=v('c_gw'); S.push=v('c_push');
   save(); toast('✓ Ajustes salvos'); go('hoje'); sincronizar();
 }
 async function testarGateway(){
