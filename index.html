@@ -410,7 +410,7 @@ async function doLogin(){
         senha=$('#l_pass').value, tipo=$('#l_tipo').value,
         lembrar=$('#l_lembrar').classList.contains('on');
   if(!banco||!usuario||!senha){ toast('Preencha empresa, usuário e senha'); return; }
-  pedirPermissao();
+  pedirPermissaoSilenciosa();
   toast('Conectando ao Secullum…');
   const r=await tentarLogin({banco,usuario,senha,tipo});
   if(!r.ok){ toast(r.erro); return; }
@@ -533,7 +533,45 @@ function checarAvisos(){
     }
   }
 }
-function pedirPermissao(){ try{ if('Notification'in window&&Notification.permission==='default') Notification.requestPermission(); }catch(e){} }
+function ehIOS(){ return /iphone|ipad|ipod/i.test(navigator.userAgent)
+  ||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1); } // iPad novo se diz Mac
+function ehInstalado(){ try{ return matchMedia('(display-mode: standalone)').matches||navigator.standalone===true; }
+  catch(e){ return false; } }
+
+// motivo de as notificações não funcionarem aqui — null quando está tudo certo
+function porQueSemNotificacao(){
+  if(!window.isSecureContext) return 'Só funciona em HTTPS — abra pelo endereço publicado, não pelo arquivo salvo.';
+  if(!('Notification'in window)) return ehIOS()
+    ? 'No iPhone só rola com o app instalado na tela inicial (iOS 16.4+): Compartilhar → Adicionar à Tela de Início.'
+    : 'Este navegador não suporta notificações.';
+  if(ehIOS()&&!ehInstalado()) return 'No iPhone, instale na tela inicial primeiro: Compartilhar → Adicionar à Tela de Início.';
+  if(Notification.permission==='denied') return 'Notificações bloqueadas. Libere nas permissões do site — daqui não dá pra perguntar de novo.';
+  return null;
+}
+function diagNotifTexto(){
+  const motivo=porQueSemNotificacao();
+  if(motivo) return '⚠️ '+motivo;
+  return Notification.permission==='granted'
+    ? '✓ Notificações liberadas'+(ehInstalado()?' e app instalado.':'. Instale na tela inicial pra ficar melhor.')
+    : 'Toque em “Ativar notificações” e escolha Permitir.';
+}
+function atualizarDiagNotif(){ const p=$('#diagNotif'); if(p) p.textContent=diagNotifTexto(); }
+function pedirPermissaoSilenciosa(){ // no login: só pergunta, sem reclamar na tela
+  try{ if(!porQueSemNotificacao()&&Notification.permission==='default')
+    Notification.requestPermission().then(atualizarDiagNotif); }catch(e){}
+}
+async function pedirPermissao(){
+  const motivo=porQueSemNotificacao();
+  if(motivo) return toast(motivo);
+  if(Notification.permission==='granted') return notificar('Notificações ligadas','É assim que vou te avisar.','teste','aviso');
+  try{
+    const r=await Notification.requestPermission();
+    if(r==='granted') notificar('Notificações ligadas','É assim que vou te avisar.','teste','aviso');
+    else if(r==='denied') toast('Você negou. Libere nas permissões do site pra eu poder avisar.');
+    else toast('Ficou sem resposta — toque de novo e escolha Permitir.');
+  }catch(e){ toast('Não deu pra pedir permissão: '+(e.message||e)); }
+  atualizarDiagNotif();
+}
 
 /* ---------- som: bipe simples (avisos) e SIRENE em loop (alarme) ---------- */
 let audioCtx=null;
@@ -815,10 +853,11 @@ function viewCfg(){
       <div class="toggle ${g.cfg.modoAlarme?'on':''}" id="c_modoAlarme"></div></div>
     <div class="field" style="margin-top:10px"><label>Atualizar do Secullum a cada (min)</label><input id="c_poll" value="${g.cfg.pollMin}" inputmode="numeric"></div>
     <div class="row2">
-      <button class="btn ghost sm" style="width:100%" onclick="pedirPermissao();toast('Se o navegador perguntar, permita as notificações')">🔔 Ativar notificações</button>
+      <button class="btn ghost sm" style="width:100%" onclick="pedirPermissao()">🔔 Ativar notificações</button>
       <button class="btn ghost sm" style="width:100%" onclick="instalarApp()">📲 Instalar no celular</button>
     </div>
-    <p class="muted" style="font-size:12px;margin:12px 0 0">Os alarmes tocam com o app aberto — pode estar em segundo plano. Instalado na tela inicial fica melhor ainda.</p>
+    <p class="muted" id="diagNotif" style="font-size:12px;margin:12px 0 0">${diagNotifTexto()}</p>
+    <p class="muted" style="font-size:12px;margin:6px 0 0">Os alarmes tocam com o app aberto — pode estar em segundo plano. Instalado na tela inicial fica melhor ainda.</p>
   </div>`);
   const cn=el(`<div class="card"><h3>Conexão</h3>
     <div class="field"><label>URL do gateway</label><input id="c_gw" value="${g.gateway||''}" placeholder="https://pontoimp-gateway.dener70.workers.dev"></div>
@@ -862,10 +901,13 @@ async function testarGateway(){
    ===================================================================== */
 let deferredPrompt=null;
 window.addEventListener('beforeinstallprompt',(e)=>{ e.preventDefault(); deferredPrompt=e; });
+window.addEventListener('appinstalled',()=>{ deferredPrompt=null; toast('Instalado! Abra pelo ícone na tela inicial.'); });
 function instalarApp(){
+  if(ehInstalado()) return toast('Já está instalado — você está usando o app da tela inicial.');
   if(deferredPrompt){ deferredPrompt.prompt(); deferredPrompt=null; return; }
-  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
-  toast(ios?'No Safari: Compartilhar → Adicionar à Tela de Início':'Menu do navegador → Instalar app / Adicionar à tela inicial');
+  if(!window.isSecureContext) return toast('Só instala em HTTPS — abra pelo endereço publicado, não pelo arquivo salvo.');
+  if(ehIOS()) return toast('No Safari: Compartilhar → Adicionar à Tela de Início. Só o Safari instala no iPhone.');
+  toast('Menu do navegador → Instalar app / Adicionar à tela inicial. Se não aparecer, recarregue a página uma vez.');
 }
 if('serviceWorker'in navigator){ window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }); }
 
