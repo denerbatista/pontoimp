@@ -64,6 +64,13 @@ npx wrangler deploy
 3. Não altere `ORIGEM_PERMITIDA` no `wrangler.toml`. Ela está apontando para
    `https://denerbatista.github.io`, que é onde o app roda. Mudar para `*`
    abriria o serviço para qualquer origem.
+
+3b. **Não renomeie o Worker.** O `name = "pontoimp-push"` no `wrangler.toml`
+   precisa ficar como está: o app tem a URL embutida em `index.html`
+   (`https://pontoimp-push.dener70.workers.dev`), e com o nome certo o usuário
+   não precisa configurar nada. Se a URL final sair diferente disso — outro
+   subdomínio workers.dev, por exemplo — **reporte a URL real**, porque aí o
+   usuário terá que preencher o campo à mão nos Ajustes.
 4. O `deploy.sh` grava o id do KV no `wrangler.toml`. **Commite e dê push dessa
    mudança na `main`** — sem isso o id se perde e o próximo deploy cria um KV
    novo, vazio, e as inscrições existentes param de receber. O id do KV não é
