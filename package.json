@@ -4,8 +4,10 @@
   "private": true,
   "description": "PontoImp — sentinela do seu ponto Secullum: zera o dia, sem hora extra à toa.",
   "scripts": {
-    "test": "npm run test:motor && npm run test:ui",
+    "test": "npm run test:motor && npm run test:push && npm run test:worker && npm run test:ui",
     "test:motor": "node test_motor.js",
+    "test:push": "node gateway/test_push.mjs",
+    "test:worker": "node gateway/test_worker.mjs",
     "test:ui": "node test_ui.js"
   },
   "devDependencies": {

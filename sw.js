@@ -1,5 +1,6 @@
 /* PontoImp — service worker: shell offline + notificações persistentes */
-const CACHE = 'pontoimp-v7';
+const CACHE = 'pontoimp-v8';
+const CFG = 'pontoimp-cfg'; // sobrevive à troca de versão: guarda a URL do serviço de push
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {
@@ -9,7 +10,7 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((ks) => Promise.all(ks.filter((k) => k !== CACHE && k !== CFG).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -27,6 +28,43 @@ self.addEventListener('fetch', (e) => {
     return;
   }
   e.respondWith(caches.match(e.request).then((hit) => hit || fetch(e.request)));
+});
+
+/* Push do servidor: é o que faz o aviso chegar com o app fechado ou o
+   celular congelado pela economia de bateria da Samsung. */
+self.addEventListener('push', (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (err) { d = { titulo: 'PontoImp', corpo: (e.data && e.data.text()) || '' }; }
+  const alarme = d.nivel === 'alarme';
+  e.waitUntil(self.registration.showNotification(d.titulo || 'PontoImp', {
+    body: d.corpo || '',
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    tag: d.chave || d.titulo,
+    renotify: true,
+    requireInteraction: alarme,
+    vibrate: alarme ? [420,140,420,140,420,140,420] : [200],
+    data: d,
+  }));
+});
+
+/* O navegador pode trocar a inscrição sozinho; sem isto o push morre calado. */
+self.addEventListener('pushsubscriptionchange', (e) => {
+  e.waitUntil((async () => {
+    try {
+      const antiga = e.oldSubscription || null;
+      const chave = antiga && antiga.options && antiga.options.applicationServerKey;
+      if (!chave) return;
+      const nova = await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: chave });
+      const c = await caches.open(CFG);
+      const r = await c.match('./__push_url');
+      if (!r) return;
+      await fetch((await r.text()) + '/push/agenda', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inscricao: nova.toJSON(), agenda: [] }),
+      });
+    } catch (err) {}
+  })());
 });
 
 // tocar na notificação abre/foca o app
