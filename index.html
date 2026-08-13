@@ -606,10 +606,10 @@ function viewCfg(){
 
   // conexão real
   const cn=el(`<div class="card"><h3>Dados reais (gateway)</h3>
-    <p class="muted" style="margin:0 0 12px">Modo demo usa dados fictícios. Para puxar seu ponto real,
-    aponte para o gateway PontoImp rodando (ele fala com o backend da Secullum).</p>
-    <div class="field"><label>URL do gateway</label><input id="c_gw" value="${g.gateway||''}" placeholder="http://localhost:3333"></div>
-    <button class="btn ghost sm" onclick="toast('Protótipo: a conexão real usa o gateway em /gateway. Ver ARQUITETURA.md')">Testar conexão</button>
+    <p class="muted" style="margin:0 0 12px">Já vem apontado para o gateway PontoImp na nuvem (Cloudflare),
+    que fala com o Secullum. Deixe em branco pra usar o padrão, ou informe outro endereço.</p>
+    <div class="field"><label>URL do gateway</label><input id="c_gw" value="${g.gateway||''}" placeholder="https://pontoimp-gateway.dener70.workers.dev"></div>
+    <button class="btn ghost sm" onclick="testarGateway()">Testar conexão</button>
   </div>`);
   c.appendChild(cn);
   return c;
@@ -665,8 +665,15 @@ function agendarAlarmes(){
 /* =====================================================================
    LOGIN / SESSÃO / INTEGRAÇÃO REAL (via gateway local)
    ===================================================================== */
-function gwUrl(){ return (S.gateway||'http://localhost:3333').replace(/\/$/,''); }
+function gwUrl(){ return (S.gateway||'https://pontoimp-gateway.dener70.workers.dev').replace(/\/$/,''); }
 function api(path){ return fetch(gwUrl()+path,{headers:{'Authorization':'Bearer '+S.token}}); }
+async function testarGateway(){
+  const url=(($('#c_gw')&&$('#c_gw').value.trim())||'https://pontoimp-gateway.dener70.workers.dev').replace(/\/$/,'');
+  toast('Testando '+url+'…');
+  try{ const r=await fetch(url+'/health'); const j=await r.json();
+    toast(j.ok?'✓ Gateway online — pode logar com sua senha real':'Respondeu, mas sem ok'); }
+  catch(e){ toast('Não conectou ao gateway: '+(e.message||e)); }
+}
 function mapFunc(f){ if(!f) return S.func;
   return { nome:f.nome||'(sem nome)', email:f.email||'', empresa:f.empresa||'', funcao:f.funcao||'', _raw:f }; }
 function normalizaEspelho(data){
