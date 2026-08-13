@@ -17,7 +17,8 @@ app fechado. Sem ele o app funciona, mas os avisos só tocam com a aba aberta.
 
 ## Pré-requisitos
 
-Credencial da Cloudflare, de uma destas formas:
+Acesso de escrita ao repositório `denerbatista/pontoimp` (para commitar o id do
+KV, ver a seção Restrições) e credencial da Cloudflare, de uma destas formas:
 
 - `CLOUDFLARE_API_TOKEN` no ambiente (preferido), ou
 - `wrangler login` interativo.
@@ -63,9 +64,19 @@ npx wrangler deploy
 3. Não altere `ORIGEM_PERMITIDA` no `wrangler.toml`. Ela está apontando para
    `https://denerbatista.github.io`, que é onde o app roda. Mudar para `*`
    abriria o serviço para qualquer origem.
-4. Se o `wrangler.toml` sofrer alteração (o id do KV é gravado nele), commite e
-   dê push na branch `claude/atualizar-repositorio-o8dr6s`. O id do KV não é
-   segredo. **Não faça push na `main` direto.**
+4. O `deploy.sh` grava o id do KV no `wrangler.toml`. **Commite e dê push dessa
+   mudança na `main`** — sem isso o id se perde e o próximo deploy cria um KV
+   novo, vazio, e as inscrições existentes param de receber. O id do KV não é
+   segredo; pode ir para o repositório à vontade.
+
+   O único arquivo que você deve alterar é o `wrangler.toml`, e só a linha do
+   `id`. Se precisar mexer em qualquer outra coisa, pare e reporte antes.
+
+   ```bash
+   git add wrangler.toml
+   git commit -m "Grava o id do KV do serviço de push"
+   git push origin main
+   ```
 
 ## Verificação
 
