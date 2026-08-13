@@ -149,11 +149,11 @@
   <div class="loginCard">
     <div class="brand"><div class="logo">Pi</div><h1>Ponto<span>Imp</span></h1></div>
     <div class="sub">Seu ponto, do seu jeito — sem hora extra à toa.</div>
-    <div class="field"><label>Empresa (banco)</label><input id="l_banco" placeholder="ex.: 127226" value="127226"></div>
+    <div class="field"><label>Empresa (banco)</label><input id="l_banco" placeholder="nº da empresa" autocomplete="off"></div>
     <div class="row2">
       <div class="field"><label>Tipo</label>
         <select id="l_tipo"><option value="0">Nº Folha</option><option value="1">Identificador</option></select></div>
-      <div class="field"><label>Usuário</label><input id="l_user" placeholder="ex.: 60" value="60"></div>
+      <div class="field"><label>Usuário</label><input id="l_user" placeholder="seu nº folha" autocomplete="off"></div>
     </div>
     <div class="field"><label>Senha</label><input id="l_pass" type="password" placeholder="sua senha"></div>
     <button class="btn" onclick="doLogin()">Entrar</button>
