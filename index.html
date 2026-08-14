@@ -103,7 +103,9 @@
   .metaSub b{color:var(--txt);font-weight:600;font-variant-numeric:tabular-nums}
 
   .timeline{display:flex;flex-direction:column;gap:2px}
-  .tl{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:10px;padding:10px;border-radius:12px}
+  /* 4ª coluna: botão de incluir batida (colapsa sozinha quando não aparece) */
+  .tl{display:grid;grid-template-columns:34px 1fr auto auto;align-items:center;gap:10px;padding:10px;border-radius:12px}
+  .tl .incBtn{width:32px;height:32px;padding:0;border-radius:10px;font-size:17px;line-height:1;flex:none}
   .tl:hover{background:var(--bg2)}
   .tl .dot{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:15px;
     background:var(--card);border:1px solid var(--line)}
@@ -153,9 +155,10 @@
   .alarmBox h2{font-size:26px;margin:10px 0 8px}
   .alarmBox p{margin:0 0 24px;font-size:15px}
 
-  /* acima da barra de navegação, senão o aviso tapa as abas */
-  .toast{position:fixed;bottom:calc(88px + env(safe-area-inset-bottom));
-    left:50%;transform:translateX(-50%) translateY(20px);opacity:0;
+  /* no topo: embaixo ele disputava espaço com a barra de abas e com os
+     botões das sheets, que são justamente o que o usuário vai tocar */
+  .toast{position:fixed;top:calc(14px + env(safe-area-inset-top));
+    left:50%;transform:translateX(-50%) translateY(-20px);opacity:0;
     background:var(--card2);border:1px solid var(--line);box-shadow:var(--sh);padding:13px 18px;border-radius:14px;
     transition:.25s;z-index:60;font-weight:600;max-width:90vw;pointer-events:none}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -199,6 +202,21 @@
     <button onclick="go('cfg')" data-v="cfg"><i>⚙️</i>Ajustes</button>
   </nav>
 </section>
+
+<!-- ===================== SHEET DO PONTO MANUAL ===================== -->
+<div class="sheetBg hidden" id="sheetInc">
+  <div class="sheet">
+    <h3 style="margin:0 0 6px">Incluir batida — <span id="incTitulo"></span></h3>
+    <p class="muted" style="margin:0 0 16px;font-size:13px">Vai direto pro seu cartão de ponto no Secullum.</p>
+    <div class="field"><label>Horário</label>
+      <input id="incHora" type="time" oninput="atualizarPreviaInclusao()"></div>
+    <div class="field"><label>Justificativa</label>
+      <select id="incJust"></select></div>
+    <p class="muted" id="incPrevia" style="font-size:12px;margin:0 0 16px"></p>
+    <button class="btn" id="incBtn" onclick="confirmarInclusao()">Confirmar e registrar</button>
+    <button class="btn ghost sm" style="margin-top:16px;width:100%;border:0;color:var(--mut)" onclick="fecharIncluir()">cancelar</button>
+  </div>
+</div>
 
 <!-- ========================= SHEET DO ALMOÇO ========================= -->
 <div class="sheetBg hidden" id="sheetAlm">
@@ -367,7 +385,8 @@ const defHoje=()=>({ data:hojeStr(), entrada:null, saidaAlmoco:null, voltaAlmoco
 const defState=()=>({
   gateway:'', push:'', pushInscrito:false,
   auth:{banco:'',tipo:'0',usuario:'',senha:'',token:'',lembrar:true},
-  func:{nome:'',empresa:''},
+  func:{nome:'',empresa:'',podeManual:false},
+  justificativas:[],
   cfg:{ cargaSegQui:492, cargaSex:432, entradaPadrao:'08:00', saidaAlmocoPadrao:'12:00', almocoMin:108,
         almocoPiso:60, compensarAtrasoNoAlmoco:true, adiantamento:'sair_cedo',
         metaSegQui:'', metaSex:'', toleranciaMin:5, ativo:true, alarmes:true, modoAlarme:true, pollMin:3 },
@@ -414,7 +433,12 @@ function cfgHoje(){ return {...S.cfg, cargaMin:cargaHojeMin(), metaSaida:(S.hoje
    ===================================================================== */
 function gwUrl(){ return (S.gateway||'https://pontoimp-gateway.dener70.workers.dev').replace(/\/$/,''); }
 function pushUrl(){ return (S.push||'https://pontoimp-push.dener70.workers.dev').replace(/\/$/,''); }
-function api(path){ return fetch(gwUrl()+path,{headers:{'Authorization':'Bearer '+S.auth.token}}); }
+function api(path,opts){
+  const o=opts||{};
+  return fetch(gwUrl()+path,{...o,headers:{Authorization:'Bearer '+S.auth.token,
+    ...(o.body?{'Content-Type':'application/json'}:{}), ...(o.headers||{})}});
+}
+const apiPost=(path,corpo)=>api(path,{method:'POST',body:JSON.stringify(corpo)});
 function normalizaEspelho(data){
   const lista=(data&&(data.lista||data.Lista))||[];
   const nomes=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
@@ -467,6 +491,27 @@ function logout(){ S.auth.token=''; S.auth.senha=''; save(); location.reload(); 
 
 /* ---------- sincronização: puxa as batidas do Secullum ---------- */
 let syncing=false;
+/* A inclusão manual pode estar desabilitada pelo empregador. Sem a flag ligada
+   a rota recusa, então o botão não deve nem aparecer. */
+async function carregarPerfil(){
+  try{
+    const r=await api('/me');
+    if(!r.ok) return;
+    const d=await r.json();
+    S.func.podeManual = (d.podeIncluirPontoManual===true);
+    if(d.nome) S.func.nome=d.nome;
+    if(d.empresa) S.func.empresa=d.empresa;
+    save(); render();
+  }catch(e){}
+}
+// o espelho já traz as justificativas válidas; o formato não é fixo, aceitamos variações
+function normalizaJustificativas(lista){
+  return (Array.isArray(lista)?lista:[]).map(j=>({
+    id: (j&&(j.id??j.Id)) ?? null,
+    txt: String((j&&(j.descricao||j.Descricao||j.nome||j.Nome))||'').trim(),
+  })).filter(j=>j.txt);
+}
+
 async function sincronizar(silencioso=true){
   if(!S.auth.token||syncing) return; syncing=true;
   try{
@@ -481,6 +526,7 @@ async function sincronizar(silencioso=true){
     if(!r.ok){ setSync('erro '+r.status); return; }
     let data=null; try{ data=JSON.parse(await r.text()); }catch(e){}
     if(!data){ setSync('resposta inválida'); return; }
+    S.justificativas=normalizaJustificativas(data.justificativas||data.Justificativas);
     const dia=normalizaEspelho(data).find(x=>x.iso===d);
     const bat=(dia&&dia.bat)||[];
     const novas={ entrada:bat[0]||null, saidaAlmoco:bat[1]||null, voltaAlmoco:bat[2]||null, saida:bat[3]||null };
@@ -744,6 +790,72 @@ async function notificar(titulo,corpo,tag,nivel){
   toast(titulo+' — '+corpo);
 }
 
+/* =====================================================================
+   PONTO MANUAL — inclui a batida que faltou
+   O horário sugerido é o que o motor já planejou pro slot, que é por
+   construção o que fecha o dia zerado. Grava no cartão de verdade, então
+   a tela mostra o efeito no saldo e exige confirmação explícita.
+   ===================================================================== */
+let incluindo=null; // {campo, dataIso}
+
+function abrirIncluir(campo){
+  if(!S.func.podeManual) return toast('Inclusão manual desabilitada pela empresa.');
+  const plan=planejarDia(S.hoje,cfgHoje());
+  incluindo={ campo, dataIso:hojeStr() };
+  $('#incTitulo').textContent=LABELS[campo];
+  $('#incHora').value=plan.plano[campo]||nowHM();
+  const sel=$('#incJust');
+  sel.innerHTML='<option value="">sem justificativa</option>'
+    +S.justificativas.map(j=>`<option value="${j.txt.replace(/"/g,'&quot;')}">${j.txt}</option>`).join('');
+  sel.parentElement.classList.toggle('hidden', S.justificativas.length===0);
+  atualizarPreviaInclusao();
+  $('#sheetInc').classList.remove('hidden');
+}
+function fecharIncluir(){ $('#sheetInc').classList.add('hidden'); incluindo=null; }
+
+/* Mostra o que aquele horário faz com o saldo — é a informação que importa
+   na hora de decidir, e some se o campo estiver inválido. */
+function atualizarPreviaInclusao(){
+  if(!incluindo) return;
+  const hora=$('#incHora').value;
+  const alvo=$('#incPrevia');
+  if(!EH_HORA.test(hora)){ alvo.textContent='Informe um horário válido.'; return; }
+  const simulado={...S.hoje, [incluindo.campo]:hora};
+  const p=planejarDia(simulado,cfgHoje());
+  const s=p.saldoRealizadoMin;
+  alvo.textContent = p.estagio===4
+    ? (s===0?'Com esse horário o dia fecha zerado.'
+      : s>0?`Com esse horário o dia fecha com ${s}min de extra.`
+           : `Com esse horário o dia fecha com ${-s}min de desconto.`)
+    : `Com esse horário, a saída que zera o dia passa a ser ${p.alvoSaida}.`;
+}
+
+async function confirmarInclusao(){
+  if(!incluindo) return;
+  const hora=$('#incHora').value;
+  if(!EH_HORA.test(hora)) return toast('Informe um horário válido (HH:MM).');
+  const btn=$('#incBtn'); btn.disabled=true; btn.textContent='Enviando…';
+  try{
+    // sem sufixo Z de propósito: com UTC o Secullum receberia a hora deslocada
+    const corpo={ dataHora:`${incluindo.dataIso}T${hora}:00`,
+      justificativa:$('#incJust').value||null,
+      latitude:null, longitude:null, precisao:null, endereco:null, foto:null,
+      marcacaoOffline:false, viaCentralWeb:true, atividadeId:null, foraDoPerimetro:false };
+    let r=await apiPost('/me/ponto',corpo);
+    if(r.status===401&&await reloginSilencioso()) r=await apiPost('/me/ponto',corpo);
+    if(!r.ok){
+      let msg='';
+      try{ const j=await r.json(); msg=j.erro||j.mensagem||''; }catch(e){}
+      toast(msg?('Recusado: '+msg):('O Secullum recusou ('+r.status+').'));
+      return;
+    }
+    fecharIncluir();
+    toast('Batida enviada — confirmando no Secullum…');
+    await sincronizar(false); // a fonte da verdade continua sendo o espelho
+  }catch(e){ toast('Não conectou pra enviar: '+(e.message||e)); }
+  finally{ btn.disabled=false; btn.textContent='Confirmar e registrar'; }
+}
+
 /* ---------- pergunta do almoço ---------- */
 function abrirPerguntaAlmoco(){
   const plan=planejarDia(S.hoje,cfgHoje());
@@ -861,7 +973,8 @@ function viewHoje(){
     tlBox.appendChild(el(`<div class="tl ${real?'done':''} ${isNext?'next':''}">
       <div class="dot">${real?'✓':(aguardando?'⏳':(isNext?'→':'○'))}</div>
       <div class="lb">${LABELS[k]}<small>${real?'registrado no Secullum':(aguardando?`bateu? esperando o Secullum processar (previsto ${pend.desde})`:'previsto pelo motor')}</small></div>
-      <div class="hr">${real||(alvo?('<small>'+alvo+'</small>'):'--:--')}</div></div>`));
+      <div class="hr">${real||(alvo?('<small>'+alvo+'</small>'):'--:--')}</div>
+      ${(!real&&S.func.podeManual&&alvo)?`<button class="btn ghost sm incBtn" onclick="abrirIncluir('${k}')" title="Incluir esta batida">＋</button>`:''}</div>`));
   });
   if(plan.estagio<=1) tl.appendChild(el(`<button class="btn ghost sm" style="width:100%;margin-top:10px" onclick="abrirPerguntaAlmoco()">🍽️ Ajustar almoço de hoje</button>`));
   wrap.appendChild(tl);
@@ -1066,7 +1179,7 @@ function mostrarLogin(){ $('#app').classList.add('hidden'); $('#login').classLis
   $('#l_tipo').value=S.auth.tipo||'0'; }
 function voltarLogin(){ S.auth.token=''; save(); if(tickTimer)clearInterval(tickTimer); mostrarLogin(); }
 function enterApp(){ $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
-  setSync(S.ultimaSyncMs?'ok':'—'); render(); startTick(); sincronizar(false); prepararAvisos(); }
+  setSync(S.ultimaSyncMs?'ok':'—'); render(); startTick(); sincronizar(false); carregarPerfil(); prepararAvisos(); }
 
 /* Ao abrir o app já deixamos os avisos prontos, sem esperar o usuário ir nos
    ajustes. Quem entra com sessão salva nunca passava pelo login, então nunca
