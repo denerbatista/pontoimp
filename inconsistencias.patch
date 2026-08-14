@@ -1,0 +1,39 @@
+--- a/src/routes/me.ts
++++ b/src/routes/me.ts
+@@ -78,6 +78,16 @@
+     return secullum.solicitacoes(cred(req), p.inicio, p.fim);
+   }));
+ 
++  app.get('/me/inconsistencias', h((req) => {
++    const p = Periodo.parse(req.query);
++    const status = Number((req.query as { status?: string }).status ?? 0);
++    return secullum.inconsistencias(cred(req), p.inicio, p.fim, Number.isFinite(status) ? status : 0);
++  }));
++
++  // justifica uma inconsistência — segue pra aprovação do gestor
++  app.post('/me/inconsistencia', h((req) =>
++    secullum.justificarInconsistencia(cred(req), req.body as Record<string, unknown>)));
++
+   // registrar ponto (escrita — exige o corpo DadosIncluirPonto)
+   app.post('/me/ponto', h((req) => secullum.incluirPonto(cred(req), fid(req), req.body as Record<string, unknown>)));
+ 
+--- a/src/secullum/client.ts
++++ b/src/secullum/client.ts
+@@ -186,6 +186,17 @@
+     return chamar(`/Solicitacoes/${iso(inicio)}/${iso(fim)}/${status}/${perfil}/0`, { auth });
+   },
+ 
++  // ---- inconsistências (marcação faltando ou errada: funcionário justifica, gestor aprova)
++  async inconsistencias(auth: CredencialSecullum, inicio: Date | string, fim: Date | string, status = 0): Promise<unknown> {
++    return chamar(`/Inconsistencias/${iso(inicio)}/${iso(fim)}/${status}`, { auth });
++  },
++
++  // O formato do corpo ainda não foi capturado; passa cru de propósito. Quando o HAR
++  // da Central confirmar os campos, dá pra validar aqui com um schema zod.
++  async justificarInconsistencia(auth: CredencialSecullum, dados: Record<string, unknown>): Promise<unknown> {
++    return chamar('/Inconsistencias', { method: 'POST', body: dados, auth });
++  },
++
+   // ---- outros
+   async justificativas(auth: CredencialSecullum): Promise<unknown> {
+     return chamar('/Justificativas', { auth });
