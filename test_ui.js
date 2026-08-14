@@ -19,14 +19,29 @@ function espelhoFake(){
     { data: isoLocal(diasAtras(3))+'T12:00:00', batidas:[] },
   ]};
 }
+let ultimoPonto = null; // corpo do último POST /me/ponto, pra conferir o que sai daqui
 const server = http.createServer((req,res)=>{
   let p = req.url.split('?')[0];
+  // ---- gateway com inclusão manual habilitada
+  if(p==='/gwman/me/ponto' && req.method==='POST'){
+    let b=''; req.on('data',d=>b+=d);
+    req.on('end',()=>{ try{ ultimoPonto=JSON.parse(b); }catch(e){ ultimoPonto={naoEhJson:b}; }
+      res.setHeader('Content-Type','application/json'); res.end('{"ok":true}'); });
+    return;
+  }
+  if(p.startsWith('/gwman/me/espelho')){ res.setHeader('Content-Type','application/json');
+    res.end(JSON.stringify({ lista:[{ data:isoLocal(diasAtras(0))+'T12:00:00', batidas:[] }],
+      justificativas:[{id:1,descricao:'Esquecimento'},{id:2,descricao:'Problema no relógio'}] })); return; }
+  if(p==='/gwman/me'){ res.setHeader('Content-Type','application/json');
+    res.end(JSON.stringify({nome:'Dener Batista',empresa:'Impacta',podeIncluirPontoManual:true})); return; }
+  if(p==='/gw/me'){ res.setHeader('Content-Type','application/json');
+    res.end(JSON.stringify({nome:'Dener Batista',empresa:'Impacta',podeIncluirPontoManual:false})); return; }
   if(p.startsWith('/gw/me/espelho')){ res.setHeader('Content-Type','application/json'); res.end(JSON.stringify(espelhoFake())); return; }
   // o Secullum devolve "FALTA" no lugar da hora quando não houve registro
   if(p.startsWith('/gwfalta/me/espelho')){ res.setHeader('Content-Type','application/json');
     res.end(JSON.stringify({ lista:[{ data:isoLocal(diasAtras(0))+'T12:00:00',
       batidas:[{valor:'FALTA'},{valor:'FALTA'},{valor:'FALTA'},{valor:'FALTA'}] }] })); return; }
-  if(p.startsWith('/gw/')||p.startsWith('/gwfalta/')){ res.statusCode=404; res.end('{}'); return; }
+  if(p.startsWith('/gw/')||p.startsWith('/gwfalta/')||p.startsWith('/gwman/')){ res.statusCode=404; res.end('{}'); return; }
   if(p==='/') p='/index.html';
   const f = path.join(__dirname, p);
   if(fs.existsSync(f)&&fs.statSync(f).isFile()){ res.setHeader('Content-Type',MIME[path.extname(f)]||'application/octet-stream'); res.end(fs.readFileSync(f)); }
@@ -130,6 +145,15 @@ const server = http.createServer((req,res)=>{
       await page.click('#nav button[data-v="cfg"]');
       await page.waitForTimeout(200);
       check('toggle "Alarme de verdade" nos ajustes', (await page.textContent('body')).includes('Alarme de verdade'));
+
+      // empresa com inclusão manual desabilitada: o botão não pode existir
+      await page.click('#nav button[data-v="hoje"]');
+      await page.waitForTimeout(200);
+      check('sem permissão, nenhum botão de incluir batida',
+        await page.evaluate(()=>S.func.podeManual===false)
+        && (await page.locator('.tl .incBtn').count())===0);
+      await page.click('#nav button[data-v="cfg"]'); // as checagens seguintes são nos Ajustes
+      await page.waitForTimeout(200);
 
       // diagnóstico de notificação/instalação: os botões têm que explicar, nunca ficar mudos
       check('diagnóstico de notificação aparece nos ajustes',
@@ -287,6 +311,72 @@ const server = http.createServer((req,res)=>{
       }));
     }
     check('sem erros de JS com espelho de FALTA', errs.length===0 || (console.log('   errs:',errs), false));
+    await page.close();
+  }
+
+  // ---- 4) ponto manual: só aparece se a empresa permitir, e grava a hora certa
+  {
+    const page = await browser.newPage();
+    const errs=[]; page.on('pageerror',e=>errs.push(String(e)));
+    await page.addInitScript(({port})=>{
+      const d=new Date(); const hoje=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      localStorage.setItem('pontoimp.v2',JSON.stringify({ gateway:'http://localhost:'+port+'/gwman',
+        auth:{banco:'1',tipo:'0',usuario:'9',senha:'',token:'fake',lembrar:true},
+        func:{nome:'Dener Batista',empresa:'Impacta',podeManual:false},
+        cfg:{cargaSegQui:492,cargaSex:432,entradaPadrao:'08:00',saidaAlmocoPadrao:'12:00',almocoMin:108,almocoPiso:60,
+             compensarAtrasoNoAlmoco:true,adiantamento:'sair_cedo',metaSegQui:'',metaSex:'',toleranciaMin:5,
+             ativo:true,alarmes:true,modoAlarme:true,pollMin:3},
+        hoje:{data:hoje,entrada:null,saidaAlmoco:null,voltaAlmoco:null,saida:null,almocoPrevisto:null,snoozeAte:null,perguntaFeita:false,metaHoje:''},
+        hist:{ts:0,dias:[]}, justificativas:[], notificados:{}, ultimaSyncMs:Date.now() }));
+    },{port:PORT});
+    await page.goto(`http://localhost:${PORT}/`);
+    await page.waitForTimeout(1200);
+
+    const dow=new Date().getDay();
+    if(dow>=1&&dow<=5){
+      check('permissão da empresa é lida do /me', await page.evaluate(()=>S.func.podeManual===true));
+      check('botão de incluir aparece nas batidas que faltam',
+        (await page.locator('.tl .incBtn').count())>0);
+
+      await page.click('.tl .incBtn');
+      await page.waitForTimeout(250);
+      check('sheet de inclusão abre', await page.locator('#sheetInc').isVisible());
+      check('horário já vem com o que o motor planejou',
+        (await page.locator('#incHora').inputValue())==='08:00');
+      check('justificativas vêm do espelho',
+        (await page.locator('#incJust option').count())===3);
+      check('prévia diz o efeito no saldo',
+        /zera|extra|desconto|saída/i.test(await page.textContent('#incPrevia')));
+
+      await page.fill('#incHora','08:07');
+      await page.waitForTimeout(150);
+      await page.selectOption('#incJust','Esquecimento');
+      await page.click('#incBtn');
+      await page.waitForTimeout(700);
+
+      const env = ultimoPonto;
+      check('enviou o POST de inclusão', !!env);
+      // um Z aqui viraria hora deslocada no Secullum — é o erro mais fácil de não notar
+      check('dataHora vai em hora local, sem sufixo de UTC',
+        !!env && /^\d{4}-\d{2}-\d{2}T08:07:00$/.test(env.dataHora));
+      check('manda a justificativa escolhida', !!env && env.justificativa==='Esquecimento');
+      check('marca como inclusão via web', !!env && env.viaCentralWeb===true && env.marcacaoOffline===false);
+      check('não inventa geolocalização', !!env
+        && env.latitude===null && env.longitude===null && env.foraDoPerimetro===false);
+      check('sheet fecha depois de registrar', await page.locator('#sheetInc').isHidden());
+
+      // o toast não pode cair em cima do botão que o usuário vai tocar
+      check('toast não cobre o botão da sheet', await page.evaluate(async()=>{
+        abrirIncluir('entrada'); toast('mensagem de teste');
+        await new Promise(r=>setTimeout(r,120));
+        const t=document.querySelector('#toast').getBoundingClientRect();
+        const b=document.querySelector('#incBtn').getBoundingClientRect();
+        const cobre = t.bottom>b.top && t.top<b.bottom && t.right>b.left && t.left<b.right;
+        fecharIncluir();
+        return !cobre;
+      }));
+    }
+    check('sem erros de JS no ponto manual', errs.length===0 || (console.log('   errs:',errs), false));
     await page.close();
   }
 
