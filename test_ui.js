@@ -154,6 +154,10 @@ const server = http.createServer((req,res)=>{
         && (await page.locator('.tl .incBtn').count())===0);
       await page.click('#nav button[data-v="cfg"]'); // as checagens seguintes são nos Ajustes
       await page.waitForTimeout(200);
+      check('ajustes explicam por que não há botão de ponto manual', await page.evaluate(()=>{
+        const t=document.querySelector('#views').textContent;
+        return /Inclusão manual/i.test(t) && /desabilitada pela sua empresa/i.test(t);
+      }));
 
       // diagnóstico de notificação/instalação: os botões têm que explicar, nunca ficar mudos
       check('diagnóstico de notificação aparece nos ajustes',
