@@ -15,7 +15,21 @@ android {
         versionName = "1.0"
     }
 
+    signingConfigs {
+        // O AGP desliga a assinatura v1 quando minSdk >= 24. O Android 12 aceita
+        // só v2, mas instaladores de fabricante às vezes recusam — religar a v1
+        // não custa nada e elimina essa variável na instalação por APK direto.
+        getByName("debug") {
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
             // assinatura de debug de propósito: a distribuição é por APK direto,
