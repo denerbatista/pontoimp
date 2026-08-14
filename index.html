@@ -538,7 +538,8 @@ async function sincronizar(silencioso=true){
     const mudou=detectarMudancas(novas);
     Object.assign(S.hoje,novas);
     S.ultimaSyncMs=Date.now(); save(); setSync('ok');
-    enviarAgenda(); // o plano pode ter mudado com a batida nova
+    enviarAgenda();        // o plano pode ter mudado com a batida nova
+    armarAlarmesNativos(); // e no APK os alarmes precisam ser remarcados
     if(!silencioso) toast('✓ Atualizado do Secullum');
     if(mudou||!silencioso) render();
   } finally { syncing=false; }
@@ -661,6 +662,15 @@ function agendaDeHoje(){
                titulo:e.titulo, corpo:e.corpo, nivel:e.nivel==='alarme'?'alarme':'aviso' }))
     .filter(e=>e.ts>limite);
 }
+/* Dentro do APK existe uma ponte nativa: a mesma agenda que vai pro push é
+   entregue ao AlarmManager, que toca de verdade — coisa que o navegador não faz. */
+const temPonteNativa=()=>typeof AndroidAlarme!=='undefined'&&!!AndroidAlarme.agendar;
+function armarAlarmesNativos(){
+  if(!temPonteNativa()) return false;
+  try{ AndroidAlarme.agendar(JSON.stringify(agendaDeHoje())); return true; }
+  catch(e){ return false; }
+}
+
 let ultimaAgenda=''; // evita repostar a mesma agenda a cada sincronização
 async function enviarAgenda(inscricao,forcar){
   if(!S.pushInscrito) return false;
@@ -720,6 +730,7 @@ async function testarPush(){
 }
 
 function diagNotifTexto(){
+  if(temPonteNativa()) return '✓ Rodando no app Android — os alarmes tocam pelo despertador do sistema.';
   const motivo=porQueSemNotificacao();
   if(motivo) return '⚠️ '+motivo;
   if(Notification.permission!=='granted') return 'Toque em “Ativar notificações” e escolha Permitir.';
@@ -1196,6 +1207,8 @@ function enterApp(){ $('#login').classList.add('hidden'); $('#app').classList.re
    era perguntado. O navegador pode engolir o pedido automático (o Chrome
    silencia quem pede sem gesto), por isso ainda mostramos o convite. */
 async function prepararAvisos(){
+  // no APK quem acorda o aparelho é o AlarmManager, não a permissão do navegador
+  if(temPonteNativa()){ armarAlarmesNativos(); esconderConvite(); atualizarDiagNotif(); return; }
   if(porQueSemNotificacao()){ mostrarConvite(); return; }
   if(Notification.permission==='default'){
     try{ await Notification.requestPermission(); }catch(e){}
