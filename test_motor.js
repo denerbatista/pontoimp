@@ -1,11 +1,18 @@
 // Testes do MOTOR v6 — extrai o bloco do motor de index.html e roda cenários
 const fs = require('fs');
+// "FALTA" vindo do Secullum não pode virar batida — senão o dia "fecha" sem ninguém bater
+const CASOS_HORA = [
+  ['08:00', true], ['00:00', true], ['23:59', true],
+  ['FALTA', false], ['', false], ['--:--', false], ['FOLGA', false],
+  ['24:00', false], ['08:60', false], ['8:00', false],
+];
+
 const html = fs.readFileSync(__dirname + '/index.html', 'utf8');
 const ini = html.indexOf('const hm =');
 const fim = html.indexOf('/* =====================================================================\n   ESTADO');
 if (ini < 0 || fim < 0) { console.error('não achei o bloco do motor'); process.exit(1); }
-const {hm, toMin, planejarDia, situacaoAgora} =
-  new Function(html.slice(ini, fim) + '\nreturn {hm, toMin, planejarDia, situacaoAgora};')();
+const {hm, toMin, EH_HORA, planejarDia, situacaoAgora} =
+  new Function(html.slice(ini, fim) + '\nreturn {hm, toMin, EH_HORA, planejarDia, situacaoAgora};')();
 
 const BASE = { cargaMin:492, entradaPadrao:'08:00', saidaAlmocoPadrao:'12:00',
   almocoMin:108, almocoPiso:60, compensarAtrasoNoAlmoco:true, adiantamento:'sair_cedo',
@@ -76,6 +83,39 @@ t('meta depois do fechamento natural não mexe em nada', {entrada:'08:00'}, {met
     voltaAlmoco:plan.plano.voltaAlmoco, saida:plan.plano.saida}, {...BASE, metaSaida:'17:00'});
   if(p2.saldoRealizadoMin===0){ ok++; console.log('✓ dia completo seguindo o plano R3 fecha com saldo 0'); }
   else { fail++; console.log(`✗ dia completo R3: saldo ${p2.saldoRealizadoMin} (esperado 0)`); }
+}
+
+// ---- "FALTA" do Secullum não é batida ----
+console.log('— leitura do espelho: só horário vale como batida —');
+for(const [valor, esperado] of CASOS_HORA){
+  const bateu = EH_HORA.test(valor);
+  if(bateu===esperado){ ok++; console.log(`✓ ${JSON.stringify(valor)} ${esperado?'é':'não é'} batida`); }
+  else { fail++; console.log(`✗ ${JSON.stringify(valor)}: deu ${bateu}, esperado ${esperado}`); }
+}
+
+// dia sem nenhuma batida real não pode fechar: era isso que dava NaN:NaN e "fechou certinho"
+{
+  const vazio = {entrada:null, saidaAlmoco:null, voltaAlmoco:null, saida:null};
+  const p = planejarDia(vazio, {...BASE, metaSaida:'17:00'});
+  const temHora = EH_HORA.test(p.alvoSaida||'');
+  if(p.estagio===0 && temHora){ ok++; console.log(`✓ dia sem batida fica no estágio 0 e mostra hora válida (${p.alvoSaida})`); }
+  else { fail++; console.log(`✗ dia sem batida: estágio ${p.estagio}, alvo ${p.alvoSaida}`); }
+}
+{
+  // o que o app recebia de verdade no print: quatro "FALTA"
+  const bat = ['FALTA','FALTA','FALTA','FALTA'].filter(v=>EH_HORA.test(v));
+  if(bat.length===0){ ok++; console.log('✓ espelho com quatro FALTA não gera nenhuma batida'); }
+  else { fail++; console.log(`✗ quatro FALTA viraram ${bat.length} batidas`); }
+}
+{
+  const nulo = toMin('FALTA');
+  if(nulo===null){ ok++; console.log('✓ toMin("FALTA") devolve null, não NaN'); }
+  else { fail++; console.log(`✗ toMin("FALTA") deu ${nulo}`); }
+}
+{
+  // campos de duração digitados à mão continuam aceitando hora sem zero à esquerda
+  if(toMin('8:12')===492){ ok++; console.log('✓ toMin("8:12") ainda funciona pros campos digitados'); }
+  else { fail++; console.log(`✗ toMin("8:12") deu ${toMin('8:12')}`); }
 }
 
 console.log(`\n${ok}/${ok+fail} testes passaram${fail?' — '+fail+' FALHARAM':''}`);
