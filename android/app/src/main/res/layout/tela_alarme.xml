@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="32dp"
+    android:background="#0f1220">
+    <TextView android:id="@+id/titulo"
+        android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:textColor="#eef1fb" android:textSize="30sp"
+        android:textStyle="bold" android:gravity="center" />
+    <TextView android:id="@+id/corpo"
+        android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_marginTop="14dp" android:textColor="#9aa5c8"
+        android:textSize="17sp" android:gravity="center" />
+    <Button android:id="@+id/parar"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="48dp" android:paddingTop="18dp" android:paddingBottom="18dp"
+        android:text="@string/parar_alarme" android:textSize="18sp" android:textStyle="bold" />
+</LinearLayout>
