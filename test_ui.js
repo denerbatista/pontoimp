@@ -269,6 +269,22 @@ const server = http.createServer((req,res)=>{
       check('campo "quero sair às" já vem preenchido', EH_HORA.test(metaVal));
       check('vem com a meta padrão do dia quando existe',
         dow===5 ? metaVal==='17:00' : EH_HORA.test(metaVal));
+
+      // cartão da saída: sem informação repetida e sem quebra torta
+      check('o selo nunca repete a hora que já está em destaque', await page.evaluate(()=>{
+        const bar=document.querySelector('.metaBar');
+        const alvo=bar.querySelector('.kpi .v').textContent.trim();
+        return !bar.querySelector('.top .pill').textContent.includes(alvo);
+      }));
+      check('hora e selo dividem a mesma linha', await page.evaluate(()=>{
+        const v=document.querySelector('.metaBar .kpi .v').getBoundingClientRect();
+        const p=document.querySelector('.metaBar .top .pill').getBoundingClientRect();
+        return p.top < v.bottom && p.bottom > v.top; // sobrepostos na vertical = lado a lado
+      }));
+      check('carga e almoço ficam em linha própria', await page.evaluate(()=>{
+        const s=document.querySelector('.metaSub');
+        return !!s && /carga/.test(s.textContent) && /almoço/.test(s.textContent);
+      }));
     }
     check('sem erros de JS com espelho de FALTA', errs.length===0 || (console.log('   errs:',errs), false));
     await page.close();
