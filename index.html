@@ -90,11 +90,17 @@
   .clock{text-align:center;padding:2px 0}
   .clock .t{font-size:50px;font-weight:800;letter-spacing:-1px;font-variant-numeric:tabular-nums}
   .clock .d{color:var(--mut);font-size:13px;margin-top:-4px}
-  .metaBar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;
-    border-radius:13px;background:var(--bg2);border:1px solid var(--line)}
-  .kpi{display:flex;flex-direction:column;gap:3px}
-  .kpi .v{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+  .metaBar{padding:14px;border-radius:13px;background:var(--bg2);border:1px solid var(--line)}
+  /* hora e selo na mesma linha de base; a hora nunca encolhe */
+  .metaBar .top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .kpi{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .kpi .v{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
   .kpi .l{color:var(--mut);font-size:12px}
+  .metaBar .top .pill{flex:none;white-space:nowrap}
+  /* dados de apoio em linha própria: alinhados à esquerda, sem quebra torta */
+  .metaSub{display:flex;flex-wrap:wrap;gap:2px 16px;margin-top:12px;padding-top:11px;
+    border-top:1px solid var(--line);color:var(--mut);font-size:12px}
+  .metaSub b{color:var(--txt);font-weight:600;font-variant-numeric:tabular-nums}
 
   .timeline{display:flex;flex-direction:column;gap:2px}
   .tl{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:10px;padding:10px;border-radius:12px}
@@ -821,19 +827,26 @@ function viewHoje(){
     : (sit.estado==='zerado'||sit.estado==='hora_de_sair')?'ok':'mut';
   const cm=plan.custoNaMeta||{tipo:'zero',min:0};
   const metaStr=S.hoje.metaHoje||metaCfgHoje();
-  const metaPill=metaStr
-    ? (cm.tipo==='zero'?`<span class="pill ok">✓ meta ${metaStr} zera</span>`
-      : cm.tipo==='extra'?`<span class="pill bad">meta +${cm.min}min extra</span>`
-      : `<span class="pill warn">meta −${cm.min}min desconto</span>`)
-    : '<span class="pill mut">sem meta hoje</span>';
+  // quando a meta é exatamente a saída já mostrada em cima, repetir a hora só polui
+  const metaPill=!metaStr ? '<span class="pill mut">sem meta hoje</span>'
+    : cm.tipo==='zero'
+      ? (metaStr===plan.alvoSaida ? '<span class="pill ok">✓ na sua meta</span>'
+                                  : `<span class="pill ok">✓ meta ${metaStr}</span>`)
+    : cm.tipo==='extra' ? `<span class="pill bad">meta ${metaStr} · +${cm.min}min</span>`
+    : `<span class="pill warn">meta ${metaStr} · −${cm.min}min</span>`;
 
   wrap.appendChild(el(`<div class="card">
     <div class="clock"><div class="t" id="clk">${nowHM()}</div>
       <div class="d">${new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'})}${S.func.nome?' · '+S.func.nome.split(' ')[0]:''}</div></div>
     <div class="metaBar" style="margin-top:14px">
-      <div class="kpi"><span class="v">${plan.alvoSaida||'--:--'}</span><span class="l">saída exata (zera o dia)</span></div>
-      <div style="text-align:right">${metaPill}
-        <div class="muted" style="font-size:12px;margin-top:6px">carga ${hm(cargaHojeMin())} (${nomeDiaCarga()}) · almoço ${hm(plan.almocoPlanejado)}${plan.almocoPlanejado!==S.cfg.almocoMin?' (ajustado)':''}</div></div>
+      <div class="top">
+        <div class="kpi"><span class="v">${plan.alvoSaida||'--:--'}</span><span class="l">saída que zera o dia</span></div>
+        ${metaPill}
+      </div>
+      <div class="metaSub">
+        <span>carga <b>${hm(cargaHojeMin())}</b> (${nomeDiaCarga()})</span>
+        <span>almoço <b>${hm(plan.almocoPlanejado)}</b>${plan.almocoPlanejado!==S.cfg.almocoMin?' · ajustado':''}</span>
+      </div>
     </div>
     <div class="pill ${sitCls}" style="width:100%;box-sizing:border-box;justify-content:center;margin-top:12px;padding:11px;white-space:normal;text-align:center">${sit.txt}</div>
   </div>`));
