@@ -13,6 +13,8 @@ on:
 jobs:
   apk:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # publicar a release com o APK
     steps:
       - uses: actions/checkout@v4
 
@@ -39,3 +41,25 @@ jobs:
           name: pontoimp-apk
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      # O artefato acima baixa como .zip e exige login no GitHub — no celular
+      # isso não instala. A release dá um link direto pro .apk, sem login.
+      - name: Renomear com a versão do build
+        run: |
+          cd android/app/build/outputs/apk/debug
+          mv app-debug.apk "pontoimp-${{ github.run_number }}.apk"
+
+      - name: Publicar release com link direto
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: PontoImp APK ${{ github.run_number }}
+          body: |
+            APK do PontoImp — instale direto no celular.
+
+            Baixe o `.apk` abaixo pelo próprio navegador do aparelho. O Android
+            vai pedir permissão para instalar de fonte desconhecida; é o esperado
+            para app fora da Play Store.
+          files: android/app/build/outputs/apk/debug/pontoimp-*.apk
+          make_latest: true
