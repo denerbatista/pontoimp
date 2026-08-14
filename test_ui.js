@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = 8765;
+const EH_HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
 const MIME = { '.html':'text/html', '.js':'text/javascript', '.png':'image/png', '.webmanifest':'application/manifest+json' };
 const isoLocal = (d)=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const diasAtras = (n)=>{ const d=new Date(); d.setDate(d.getDate()-n); return d; };
@@ -21,7 +22,11 @@ function espelhoFake(){
 const server = http.createServer((req,res)=>{
   let p = req.url.split('?')[0];
   if(p.startsWith('/gw/me/espelho')){ res.setHeader('Content-Type','application/json'); res.end(JSON.stringify(espelhoFake())); return; }
-  if(p.startsWith('/gw/')){ res.statusCode=404; res.end('{}'); return; }
+  // o Secullum devolve "FALTA" no lugar da hora quando não houve registro
+  if(p.startsWith('/gwfalta/me/espelho')){ res.setHeader('Content-Type','application/json');
+    res.end(JSON.stringify({ lista:[{ data:isoLocal(diasAtras(0))+'T12:00:00',
+      batidas:[{valor:'FALTA'},{valor:'FALTA'},{valor:'FALTA'},{valor:'FALTA'}] }] })); return; }
+  if(p.startsWith('/gw/')||p.startsWith('/gwfalta/')){ res.statusCode=404; res.end('{}'); return; }
   if(p==='/') p='/index.html';
   const f = path.join(__dirname, p);
   if(fs.existsSync(f)&&fs.statSync(f).isFile()){ res.setHeader('Content-Type',MIME[path.extname(f)]||'application/octet-stream'); res.end(fs.readFileSync(f)); }
@@ -223,6 +228,49 @@ const server = http.createServer((req,res)=>{
       check('tela de folga no fim de semana', (await page.textContent('body')).includes('folga'));
     }
     check('sem erros de JS no app', errs.length===0 || (console.log('   errs:',errs), false));
+    await page.close();
+  }
+
+  // ---- 3) espelho só com "FALTA": nada foi batido, o dia não pode "fechar"
+  {
+    const page = await browser.newPage();
+    const errs=[]; page.on('pageerror',e=>errs.push(String(e)));
+    await page.addInitScript(({port})=>{
+      const d=new Date(); const hoje=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      localStorage.setItem('pontoimp.v2',JSON.stringify({ gateway:'http://localhost:'+port+'/gwfalta',
+        auth:{banco:'1',tipo:'0',usuario:'9',senha:'',token:'fake',lembrar:true},
+        func:{nome:'Dener Batista',empresa:'Impacta'},
+        cfg:{cargaSegQui:492,cargaSex:432,entradaPadrao:'08:00',saidaAlmocoPadrao:'12:00',almocoMin:108,almocoPiso:60,
+             compensarAtrasoNoAlmoco:true,adiantamento:'sair_cedo',metaSegQui:'',metaSex:'17:00',toleranciaMin:5,
+             ativo:true,alarmes:true,modoAlarme:true,pollMin:3},
+        hoje:{data:hoje,entrada:null,saidaAlmoco:null,voltaAlmoco:null,saida:null,almocoPrevisto:null,snoozeAte:null,perguntaFeita:false,metaHoje:''},
+        hist:{ts:0,dias:[]}, notificados:{}, ultimaSyncMs:Date.now() }));
+    },{port:PORT});
+    await page.goto(`http://localhost:${PORT}/`);
+    await page.waitForTimeout(1100);
+    const txt = await page.textContent('body');
+
+    // só o painel do app: #login fica no DOM escondido e sujaria a busca
+    const app = await page.textContent('#app');
+    check('FALTA não vira horário na tela', !app.includes('NaN'));
+    check('dia não é dado como fechado sem batida', !/fechou certinho/i.test(app));
+    check('nenhuma batida marcada como registrada', !/registrado no Secullum/.test(app));
+    check('as batidas do dia continuam pendentes', await page.evaluate(()=>
+      S.hoje.entrada===null && S.hoje.saidaAlmoco===null && S.hoje.voltaAlmoco===null && S.hoje.saida===null));
+    check('saída exata mostra hora válida', await page.evaluate(()=>
+      EH_HORA.test(planejarDia(S.hoje,cfgHoje()).alvoSaida||'')));
+
+    // meta pré-preenchida: o campo nunca pode abrir vazio
+    const dow=new Date().getDay();
+    if(dow>=1&&dow<=5){
+      await page.click('#nav button[data-v="hoje"]');
+      await page.waitForTimeout(200);
+      const metaVal = await page.locator('#metaHoje').inputValue();
+      check('campo "quero sair às" já vem preenchido', EH_HORA.test(metaVal));
+      check('vem com a meta padrão do dia quando existe',
+        dow===5 ? metaVal==='17:00' : EH_HORA.test(metaVal));
+    }
+    check('sem erros de JS com espelho de FALTA', errs.length===0 || (console.log('   errs:',errs), false));
     await page.close();
   }
 

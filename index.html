@@ -230,7 +230,11 @@
    1º os minutos adiantados da entrada, 2º desconta do almoço (até o piso).
    ===================================================================== */
 const hm = (m)=>{m=Math.round(m);const h=Math.floor(m/60),x=((m%60)+60)%60;return String(h).padStart(2,'0')+':'+String(x).padStart(2,'0');};
-const toMin = (s)=>{ if(s==null||s==='')return null; const [h,m]=String(s).split(':').map(Number); return h*60+m; };
+// batida do Secullum é sempre HH:MM; "FALTA" e afins não são horário
+const EH_HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
+// aceita 8:12 e 08:12 (campos de duração são digitados à mão), mas nunca texto solto
+const toMin = (s)=>{ const m=/^(\d{1,2}):([0-5]\d)$/.exec(String(s??'').trim());
+  return m ? (+m[1])*60 + (+m[2]) : null; };
 
 function planejarDia(batidas, config){
   const c = { cargaMin:492, entradaPadrao:'08:00', saidaAlmocoPadrao:'12:00',
@@ -411,7 +415,10 @@ function normalizaEspelho(data){
   return lista.map(d=>{
     const raw=d.data||d.Data; const dt=raw?new Date(raw):null;
     const iso=dt?dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'):'';
-    const bat=((d.batidas||d.Batidas||[]).map(b=>String(b.valor||b.Valor||'').slice(0,5)).filter(Boolean));
+    // o Secullum manda "FALTA" (e outros rótulos) no lugar da hora quando não houve
+    // registro. Só horário vale como batida — senão o motor acha que o dia fechou.
+    const bat=((d.batidas||d.Batidas||[]).map(b=>String(b.valor||b.Valor||'').trim().slice(0,5))
+      .filter(v=>EH_HORA.test(v)));
     return { iso, data:dt?String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0'):'',
       dia:dt?nomes[dt.getDay()]:'', bat, saldoStr:d.saldo||d.Saldo||'', fds:dt?(dt.getDay()===0||dt.getDay()===6):false };
   });
@@ -848,10 +855,11 @@ function viewHoje(){
 
   wrap.appendChild(el(`<div class="card"><h3>Quero sair hoje às…</h3>
     <div class="row2" style="align-items:stretch">
-      <div class="field" style="margin:0"><input id="metaHoje" type="time" value="${S.hoje.metaHoje||''}"></div>
+      <div class="field" style="margin:0"><input id="metaHoje" type="time"
+        value="${S.hoje.metaHoje||metaCfgHoje()||plan.alvoSaida||''}"></div>
       <button class="btn sm" style="width:100%" onclick="salvarMetaHoje()">Aplicar</button>
     </div>
-    <p class="muted" style="font-size:12px;margin:10px 0 0">Uso primeiro seus minutos adiantados; o que faltar desconto do almoço (piso ${hm(S.cfg.almocoPiso)}). Vazio = meta padrão dos Ajustes.</p>
+    <p class="muted" style="font-size:12px;margin:10px 0 0">Já vem com ${S.hoje.metaHoje?'a meta que você aplicou hoje':(metaCfgHoje()?'a meta padrão dos Ajustes':'a saída que zera o dia')} — mude se quiser outro horário. Uso primeiro seus minutos adiantados; o que faltar desconto do almoço (piso ${hm(S.cfg.almocoPiso)}).</p>
   </div>`));
 
   if(plan.avisos.length){
