@@ -493,16 +493,21 @@ function logout(){ S.auth.token=''; S.auth.senha=''; save(); location.reload(); 
 let syncing=false;
 /* A inclusão manual pode estar desabilitada pelo empregador. Sem a flag ligada
    a rota recusa, então o botão não deve nem aparecer. */
+let diagManual='ainda não consultei o Secullum.';
 async function carregarPerfil(){
   try{
     const r=await api('/me');
-    if(!r.ok) return;
+    if(!r.ok){ diagManual=`não consegui ler a permissão — o gateway respondeu ${r.status}.`; render(); return; }
     const d=await r.json();
-    S.func.podeManual = (d.podeIncluirPontoManual===true);
+    const v=d.podeIncluirPontoManual;
+    S.func.podeManual=(v===true);
+    diagManual = v===true ? 'liberada — o ＋ aparece nas batidas que faltam, na aba Hoje.'
+      : v===false ? 'desabilitada pela sua empresa no Secullum.'
+      : 'o gateway respondeu, mas sem o campo podeIncluirPontoManual.';
     if(d.nome) S.func.nome=d.nome;
     if(d.empresa) S.func.empresa=d.empresa;
     save(); render();
-  }catch(e){}
+  }catch(e){ diagManual='não conectei no gateway pra checar.'; render(); }
 }
 // o espelho já traz as justificativas válidas; o formato não é fixo, aceitamos variações
 function normalizaJustificativas(lista){
@@ -1114,6 +1119,11 @@ function viewCfg(){
     <p class="muted" id="diagNotif" style="font-size:12px;margin:12px 0 0">${diagNotifTexto()}</p>
     <p class="muted" style="font-size:12px;margin:6px 0 0">Os alarmes tocam com o app aberto — pode estar em segundo plano. Instalado na tela inicial fica melhor ainda.</p>
   </div>`);
+  const pm=el(`<div class="card"><h3>Ponto manual</h3>
+    <p class="muted" style="font-size:13px;margin:0">Inclusão manual: <b style="color:var(--txt)">${diagManual}</b></p>
+    <p class="muted" style="font-size:12px;margin:10px 0 0">Quando liberada, o botão fica na aba <b>Hoje</b>, na linha de cada batida que faltou — não aqui nos ajustes.</p>
+  </div>`);
+
   const cn=el(`<div class="card"><h3>Conexão</h3>
     <div class="field"><label>URL do gateway</label><input id="c_gw" value="${g.gateway||''}" placeholder="https://pontoimp-gateway.dener70.workers.dev"></div>
     <div class="field"><label>URL do serviço de push</label><input id="c_push" value="${g.push||''}" placeholder="https://pontoimp-push.dener70.workers.dev"></div>
@@ -1122,7 +1132,7 @@ function viewCfg(){
     <button class="btn ghost sm" style="margin-top:10px;color:var(--bad)" onclick="logout()">Sair e limpar sessão</button>
   </div>`);
   const b=el('<button class="btn">Salvar ajustes</button>'); b.onclick=salvarCfg;
-  c.appendChild(m); c.appendChild(n); c.appendChild(cn); c.appendChild(b);
+  c.appendChild(m); c.appendChild(n); c.appendChild(pm); c.appendChild(cn); c.appendChild(b);
   ['#c_ativo','#c_compAtraso','#c_alarmes','#c_modoAlarme'].forEach(id=>{ c.querySelector(id).onclick=(e)=>e.currentTarget.classList.toggle('on'); });
   return c;
 }
