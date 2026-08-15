@@ -55,6 +55,19 @@ Na primeira abertura ele pede permissão de notificação e, no Android 12, mand
 você para a tela de alarmes exatos do sistema. Sem essa segunda, o agendamento
 falha em silêncio — por isso o app leva você direto para lá.
 
+### Se a instalação falhar
+
+O sintoma é a instalação demorar e terminar em "app não instalado", sem
+explicação. Na prática o culpado foi o **Play Protect**, que escaneia APK de
+fora da loja e barra sem dizer o motivo.
+
+Play Store → foto do perfil → Play Protect → engrenagem → desligar
+"Verificar apps". Instale e religue depois.
+
+Se ainda assim recusar, aí vale conferir o resto: espaço em disco, e
+Configurações → Apps → ⋮ → Acesso especial → Instalar apps desconhecidos,
+liberando para o app de onde você abre o arquivo.
+
 ## Limitação conhecida da v1
 
 **Os alarmes são armados quando o app sincroniza**, ou seja, quando você o abre.
