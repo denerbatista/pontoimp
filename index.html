@@ -203,6 +203,21 @@
   </nav>
 </section>
 
+<!-- ================== SHEET DA JUSTIFICATIVA ================== -->
+<div class="sheetBg hidden" id="sheetJus">
+  <div class="sheet">
+    <h3 style="margin:0 0 6px">Justificar inconsistência</h3>
+    <p class="muted" id="jusTxt" style="margin:0 0 16px;font-size:13px"></p>
+    <div class="field"><label>Justificativa do Secullum</label>
+      <select id="jusSel"></select></div>
+    <div class="field"><label>Ou escreva a sua</label>
+      <input id="jusLivre" placeholder="deixe vazio pra usar a de cima"></div>
+    <p class="muted" style="font-size:12px;margin:0 0 16px">Vai pro seu gestor aprovar.</p>
+    <button class="btn" id="jusBtn" onclick="confirmarJustificativa()">Enviar justificativa</button>
+    <button class="btn ghost sm" style="margin-top:16px;width:100%;border:0;color:var(--mut)" onclick="fecharJustificar()">cancelar</button>
+  </div>
+</div>
+
 <!-- ===================== SHEET DO PONTO MANUAL ===================== -->
 <div class="sheetBg hidden" id="sheetInc">
   <div class="sheet">
@@ -807,6 +822,72 @@ async function notificar(titulo,corpo,tag,nivel){
 }
 
 /* =====================================================================
+   INCONSISTÊNCIAS — justifica marcação faltando ou errada
+   O contrato é um round-trip: o objeto vem do GET, a gente só preenche
+   a justificativa e devolve inteiro. Por isso não interpretamos o schema
+   — mexer nele seria inventar campo que o Secullum não pediu.
+   ===================================================================== */
+let inconsistencias=[];   // como vieram do gateway, sem alterar
+let justificando=null;
+
+async function carregarInconsistencias(){
+  if(!S.auth.token) return;
+  const fim=hojeStr();
+  const d=new Date(); d.setDate(d.getDate()-30);
+  const ini=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  try{
+    const r=await api(`/me/inconsistencias?inicio=${ini}&fim=${fim}&status=0`);
+    if(!r.ok){ inconsistencias=[]; return; }   // rota ausente no gateway: some da tela
+    const j=await r.json();
+    inconsistencias=Array.isArray(j)?j:(Array.isArray(j&&j.lista)?j.lista:[]);
+    render();
+  }catch(e){ inconsistencias=[]; }
+}
+
+// o schema não é fixo; mostramos o que der e nunca quebramos por campo ausente
+const descreverInc=(i)=>{
+  const dt=String(i.data||i.Data||'').slice(0,10);
+  const txt=i.descricao||i.Descricao||i.motivo||i.Motivo||i.tipo||i.Tipo||'inconsistência';
+  return { data: dt?dt.split('-').reverse().join('/'):'—', txt:String(txt) };
+};
+
+function abrirJustificar(idx){
+  const inc=inconsistencias[idx]; if(!inc) return;
+  justificando=idx;
+  const d=descreverInc(inc);
+  $('#jusTxt').textContent=`${d.data} — ${d.txt}`;
+  const sel=$('#jusSel');
+  sel.innerHTML=S.justificativas.length
+    ? S.justificativas.map(j=>`<option value="${j.txt.replace(/"/g,'&quot;')}">${j.txt}</option>`).join('')
+    : '<option value="">(o Secullum não mandou lista)</option>';
+  $('#jusLivre').value='';
+  $('#sheetJus').classList.remove('hidden');
+}
+function fecharJustificar(){ $('#sheetJus').classList.add('hidden'); justificando=null; }
+
+async function confirmarJustificativa(){
+  if(justificando==null) return;
+  const texto=($('#jusLivre').value.trim()||$('#jusSel').value||'').trim();
+  if(!texto) return toast('Escolha ou escreva uma justificativa.');
+  const btn=$('#jusBtn'); btn.disabled=true; btn.textContent='Enviando…';
+  try{
+    // devolve o objeto original intacto, só com a justificativa preenchida
+    const corpo={...inconsistencias[justificando], justificativa:texto};
+    let r=await apiPost('/me/inconsistencia',corpo);
+    if(r.status===401&&await reloginSilencioso()) r=await apiPost('/me/inconsistencia',corpo);
+    if(!r.ok){
+      let msg=''; try{ const j=await r.json(); msg=j.erro||j.mensagem||''; }catch(e){}
+      toast(msg?('Recusado: '+msg):('O Secullum recusou ('+r.status+').'));
+      return;
+    }
+    fecharJustificar();
+    toast('Justificativa enviada — vai pra aprovação do gestor.');
+    await carregarInconsistencias();
+  }catch(e){ toast('Não conectou pra enviar: '+(e.message||e)); }
+  finally{ btn.disabled=false; btn.textContent='Enviar justificativa'; }
+}
+
+/* =====================================================================
    PONTO MANUAL — inclui a batida que faltou
    O horário sugerido é o que o motor já planejou pro slot, que é por
    construção o que fecha o dia zerado. Grava no cartão de verdade, então
@@ -978,6 +1059,21 @@ function viewHoje(){
     </div>
     <div class="pill ${sitCls}" style="width:100%;box-sizing:border-box;justify-content:center;margin-top:12px;padding:11px;white-space:normal;text-align:center">${sit.txt}</div>
   </div>`));
+
+  if(inconsistencias.length){
+    const linhas=inconsistencias.map((inc,i)=>{
+      const d=descreverInc(inc);
+      return `<div class="tl">
+        <div class="dot">⚠️</div>
+        <div class="lb">${d.data}<small>${d.txt}</small></div>
+        <div class="hr"></div>
+        <button class="btn ghost sm jusLinha" style="width:auto;padding:0 12px;height:32px" onclick="abrirJustificar(${i})">justificar</button>
+      </div>`;
+    }).join('');
+    wrap.appendChild(el(`<div class="card"><h3>Pendências do Secullum
+      <span class="muted" style="text-transform:none;font-weight:500">· esperando justificativa</span></h3>
+      <div class="timeline">${linhas}</div></div>`));
+  }
 
   const tl=el(`<div class="card"><h3>Batidas de hoje <span class="muted" style="text-transform:none;font-weight:500">· lidas do Secullum</span></h3><div class="timeline"></div></div>`);
   const tlBox=tl.querySelector('.timeline');
@@ -1200,7 +1296,8 @@ function mostrarLogin(){ $('#app').classList.add('hidden'); $('#login').classLis
   $('#l_tipo').value=S.auth.tipo||'0'; }
 function voltarLogin(){ S.auth.token=''; save(); if(tickTimer)clearInterval(tickTimer); mostrarLogin(); }
 function enterApp(){ $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
-  setSync(S.ultimaSyncMs?'ok':'—'); render(); startTick(); sincronizar(false); carregarPerfil(); prepararAvisos(); }
+  setSync(S.ultimaSyncMs?'ok':'—'); render(); startTick(); sincronizar(false);
+  carregarPerfil(); carregarInconsistencias(); prepararAvisos(); }
 
 /* Ao abrir o app já deixamos os avisos prontos, sem esperar o usuário ir nos
    ajustes. Quem entra com sessão salva nunca passava pelo login, então nunca
