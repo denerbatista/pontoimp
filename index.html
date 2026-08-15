@@ -106,6 +106,12 @@
   /* 4ª coluna: botão de incluir batida (colapsa sozinha quando não aparece) */
   .tl{display:grid;grid-template-columns:34px 1fr auto auto;align-items:center;gap:10px;padding:10px;border-radius:12px}
   .tl .incBtn{width:32px;height:32px;padding:0;border-radius:10px;font-size:17px;line-height:1;flex:none}
+  /* ações do dia no histórico: três sempre visíveis, sem obrigar a adivinhar */
+  .acoesDia{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+  .acoesDia .btn{width:100%;padding:7px 0;font-size:12px;height:auto}
+  .detDia{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+  .detLinha{display:flex;justify-content:space-between;gap:10px;padding:4px 0;font-size:13px;color:var(--mut)}
+  .detLinha b{color:var(--txt);font-variant-numeric:tabular-nums}
   .tl:hover{background:var(--bg2)}
   .tl .dot{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:15px;
     background:var(--card);border:1px solid var(--line)}
@@ -863,8 +869,13 @@ const descreverInc=(i)=>{
   return { data: dt?dt.split('-').reverse().join('/'):'—', txt:String(txt) };
 };
 
-function abrirJustificar(idx){
-  const inc=inconsistencias[idx]; if(!inc) return;
+function abrirJustificar(idx,iso){
+  const inc=inconsistencias[idx];
+  // sem pendência apontada não há o que enviar: o POST devolve o objeto que
+  // veio do Secullum, e num dia sem inconsistência esse objeto não existe
+  if(!inc) return toast(iso
+    ? `O Secullum não apontou pendência em ${dataBR(iso)}. Justificativa só vale sobre pendência que ele marcou.`
+    : 'Nenhuma pendência selecionada.');
   justificando=idx;
   const d=descreverInc(inc);
   $('#jusTxt').textContent=`${d.data} — ${d.txt}`;
@@ -1223,25 +1234,47 @@ function linhaDia(d,ehHoje){
   else if(ehHoje) saldoHtml='<span class="pill mut">em andamento</span>';
   const almocoTxt=(d.bat[1]&&d.bat[2])?`${d.bat[1]}–${d.bat[2]}`:(d.bat[1]||'—');
   // dia útil com batida faltando: dá pra corrigir daqui, sem depender de ser hoje
-  const faltando=!d.fds && d.bat.length<4;
-  const corrigir=(faltando&&S.func.podeManual)
-    ? `<button class="btn ghost sm" style="width:auto;padding:0 12px;height:30px;margin-left:8px"
-        onclick="abrirIncluir(null,'${d.iso}')">＋ corrigir</button>` : '';
-  // o Secullum apontou pendência nesse dia: justifica daqui mesmo
   const iInc=incDoDia(d.iso);
-  const justificar=iInc>=0
-    ? `<button class="btn ghost sm jusLinha" style="width:auto;padding:0 12px;height:30px;margin-left:8px;color:var(--warn)"
-        onclick="abrirJustificar(${iInc})">⚠️ justificar</button>` : '';
+  // as três ações em todo dia: esconder botão obriga a adivinhar quando ele existe
+  const acoes=`<div class="acoesDia">
+    <button class="btn ghost sm" onclick="verDetalhes('${d.iso}')">🔎 detalhes</button>
+    <button class="btn ghost sm jusLinha" onclick="abrirJustificar(${iInc},'${d.iso}')">⚠️ justificar</button>
+    <button class="btn ghost sm" onclick="abrirIncluir(null,'${d.iso}')">＋ ajustar</button>
+  </div>`;
   return `<div class="dia ${ehHoje?'diaHoje':''} ${d.fds?'diaFds':''}">
-    <div class="diaHead"><b>${d.dia} ${d.data}</b>${ehHoje?'<span class="pill ok" style="margin-left:8px">hoje</span>':''}<span style="flex:1"></span>${saldoHtml}${justificar}${corrigir}</div>
+    <div class="diaHead"><b>${d.dia} ${d.data}</b>${ehHoje?'<span class="pill ok" style="margin-left:8px">hoje</span>':''}<span style="flex:1"></span>${saldoHtml}</div>
     ${(d.fds&&!d.bat.length)?'':`<div class="batChips">
       ${chipBat('🏢 entrada',d.bat[0])}
       ${chipBat('🍽️ almoço',almocoTxt)}
       ${chipBat('🏁 saída',d.bat[3])}
       ${m?chipBat('⏱️ trabalhado',hm(m.trab)):''}
     </div>`}
+    ${acoes}
+    <div class="detDia hidden" id="det-${d.iso}">${detalhesDia(d)}</div>
   </div>`;
 }
+
+/* Detalhe do dia: as quatro batidas com nome, o que o motor calcularia e o
+   saldo. É o que responde "por que esse dia deu isso". */
+function detalhesDia(d){
+  const linhas=ORDER.map((k,i)=>
+    `<div class="detLinha"><span>${LABELS[k]}</span><b>${d.bat[i]||'—'}</b></div>`).join('');
+  const carga=cargaDoDia(d.iso);
+  const m=minutosTrabalhados(d.bat);
+  let extra='';
+  if(!d.fds){
+    const p=planejarDia(batidasDoDia(d.iso),cfgDoDia(d.iso));
+    extra=`<div class="detLinha"><span>carga do dia</span><b>${hm(carga)}</b></div>
+      <div class="detLinha"><span>saída que zera</span><b>${p.alvoSaida||'—'}</b></div>
+      ${m?`<div class="detLinha"><span>trabalhado</span><b>${hm(m.trab)}</b></div>
+        <div class="detLinha"><span>saldo</span><b>${m.trab-carga===0?'zerado':(m.trab-carga>0?'+':'−')+hm(Math.abs(m.trab-carga))}</b></div>`
+        :'<div class="detLinha"><span>saldo</span><b>dia incompleto</b></div>'}`;
+  } else extra='<div class="detLinha"><span>dia</span><b>folga, sem carga</b></div>';
+  const inc=inconsistencias[incDoDia(d.iso)];
+  const pend=inc?`<div class="detLinha" style="color:var(--warn)"><span>pendência</span><b>${descreverInc(inc).txt}</b></div>`:'';
+  return linhas+extra+pend;
+}
+function verDetalhes(iso){ const b=$('#det-'+iso); if(b) b.classList.toggle('hidden'); }
 function viewHist(){
   const wrap=el('<div class="cards"></div>');
   const nomes=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];

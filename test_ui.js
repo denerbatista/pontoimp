@@ -429,11 +429,11 @@ const server = http.createServer((req,res)=>{
         view='hist'; render();
       });
       await page.waitForTimeout(300);
-      // hoje também aparece na lista e também está incompleto: miramos na linha do dia 12
-      check('dia passado incompleto ganha botão de corrigir',
-        (await page.locator('.dia:has-text("12/08") button:has-text("corrigir")').count())===1);
+      // as três ações aparecem em todo dia, então miramos na linha do dia 12
+      check('todo dia oferece detalhes, justificar e ajustar',
+        (await page.locator('.dia:has-text("12/08") .acoesDia .btn').count())===3);
 
-      await page.click('.dia:has-text("12/08") button:has-text("corrigir")');
+      await page.click('.dia:has-text("12/08") button:has-text("ajustar")');
       await page.waitForTimeout(300);
       check('a sheet abre na data daquele dia, não na de hoje',
         /12\/08\/2026/.test(await page.textContent('#incTitulo')));
@@ -457,10 +457,14 @@ const server = http.createServer((req,res)=>{
         view='hist'; render();
       });
       await page.waitForTimeout(300);
-      check('dia com pendência ganha botão de justificar no histórico',
+      check('dia com pendência tem o justificar na linha',
         (await page.locator('.dia:has-text("10/08") .jusLinha').count())===1);
-      check('dia completo não pede correção de batida',
-        (await page.locator('.dia:has-text("10/08") button:has-text("corrigir")').count())===0);
+      check('detalhes do dia abrem e mostram o cálculo', await page.evaluate(()=>{
+        verDetalhes('2026-08-10');
+        const b=document.querySelector('#det-2026-08-10');
+        return !b.classList.contains('hidden')
+          && /carga do dia/.test(b.textContent) && /saldo/.test(b.textContent);
+      }));
 
       await page.click('.dia:has-text("10/08") .jusLinha');
       await page.waitForTimeout(250);
