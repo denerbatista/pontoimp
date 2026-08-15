@@ -451,6 +451,24 @@ const server = http.createServer((req,res)=>{
       await page.waitForTimeout(600);
       check('o POST vai com a data do dia corrigido',
         !!ultimoPonto && /^2026-08-12T/.test(ultimoPonto.dataHora));
+      // pendência do Secullum casada com a linha do dia: justificar sem sair do histórico
+      await page.evaluate(()=>{
+        S.hist={ts:Date.now(),dias:[{iso:'2026-08-10',data:'10/08',dia:'Seg',fds:false,saldoStr:'',bat:['08:00','12:00','13:00','18:00']}]};
+        view='hist'; render();
+      });
+      await page.waitForTimeout(300);
+      check('dia com pendência ganha botão de justificar no histórico',
+        (await page.locator('.dia:has-text("10/08") .jusLinha').count())===1);
+      check('dia completo não pede correção de batida',
+        (await page.locator('.dia:has-text("10/08") button:has-text("corrigir")').count())===0);
+
+      await page.click('.dia:has-text("10/08") .jusLinha');
+      await page.waitForTimeout(250);
+      check('abre a justificativa daquela pendência',
+        await page.locator('#sheetJus').isVisible()
+        && /10\/08\/2026/.test(await page.textContent('#jusTxt')));
+      await page.evaluate(()=>fecharJustificar());
+
       await page.evaluate(()=>{ fecharIncluir(); go('hoje'); });
       await page.waitForTimeout(200);
 
