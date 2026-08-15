@@ -422,6 +422,38 @@ const server = http.createServer((req,res)=>{
         && env.latitude===null && env.longitude===null && env.foraDoPerimetro===false);
       check('sheet fecha depois de registrar', await page.locator('#sheetInc').isHidden());
 
+      // corrigir um dia passado: é onde a batida esquecida costuma ser notada
+      // view direto, sem go(): go('hist') recarrega do gateway e apaga este fixture
+      await page.evaluate(()=>{
+        S.hist={ts:Date.now(),dias:[{iso:'2026-08-12',data:'12/08',dia:'Qua',fds:false,saldoStr:'',bat:['08:00','12:00']}]};
+        view='hist'; render();
+      });
+      await page.waitForTimeout(300);
+      // hoje também aparece na lista e também está incompleto: miramos na linha do dia 12
+      check('dia passado incompleto ganha botão de corrigir',
+        (await page.locator('.dia:has-text("12/08") button:has-text("corrigir")').count())===1);
+
+      await page.click('.dia:has-text("12/08") button:has-text("corrigir")');
+      await page.waitForTimeout(300);
+      check('a sheet abre na data daquele dia, não na de hoje',
+        /12\/08\/2026/.test(await page.textContent('#incTitulo')));
+      check('propõe a primeira batida que falta naquele dia',
+        (await page.locator('#incCampo').inputValue())==='voltaAlmoco');
+      check('as já registradas aparecem bloqueadas',
+        (await page.locator('#incCampo option[disabled]').count())===2);
+
+      await page.selectOption('#incCampo','saida');
+      await page.waitForTimeout(200);
+      check('trocar a batida recalcula o horário sugerido',
+        EH_HORA.test(await page.locator('#incHora').inputValue()));
+
+      await page.click('#incBtn');
+      await page.waitForTimeout(600);
+      check('o POST vai com a data do dia corrigido',
+        !!ultimoPonto && /^2026-08-12T/.test(ultimoPonto.dataHora));
+      await page.evaluate(()=>{ fecharIncluir(); go('hoje'); });
+      await page.waitForTimeout(200);
+
       // o toast não pode cair em cima do botão que o usuário vai tocar
       // inconsistências: o contrato é devolver o objeto inteiro, só com a justificativa
       check('pendência do Secullum aparece na tela',
