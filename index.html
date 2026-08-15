@@ -836,8 +836,12 @@ async function carregarInconsistencias(){
   const d=new Date(); d.setDate(d.getDate()-30);
   const ini=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   try{
-    const r=await api(`/me/inconsistencias?inicio=${ini}&fim=${fim}&status=0`);
-    if(!r.ok){ inconsistencias=[]; return; }   // rota ausente no gateway: some da tela
+    let r=await api(`/me/inconsistencias?inicio=${ini}&fim=${fim}&status=0`);
+    // gateway sem a rota dedicada: a escotilha /me/raw já existe e é GET, então
+    // a listagem funciona sem precisar publicar nada. Só o envio exige o patch.
+    if(r.status===404)
+      r=await api('/me/raw?endpoint='+encodeURIComponent(`/Inconsistencias/${ini}/${fim}/0`));
+    if(!r.ok){ inconsistencias=[]; return; }
     const j=await r.json();
     inconsistencias=Array.isArray(j)?j:(Array.isArray(j&&j.lista)?j.lista:[]);
     render();
@@ -876,6 +880,9 @@ async function confirmarJustificativa(){
     let r=await apiPost('/me/inconsistencia',corpo);
     if(r.status===401&&await reloginSilencioso()) r=await apiPost('/me/inconsistencia',corpo);
     if(!r.ok){
+      // 404 aqui é o gateway sem a rota, não o Secullum recusando — dizer a
+      // coisa certa evita procurar problema no lugar errado
+      if(r.status===404) return toast('O gateway ainda não tem a rota de envio. Falta aplicar o patch de inconsistências.');
       let msg=''; try{ const j=await r.json(); msg=j.erro||j.mensagem||''; }catch(e){}
       toast(msg?('Recusado: '+msg):('O Secullum recusou ('+r.status+').'));
       return;
