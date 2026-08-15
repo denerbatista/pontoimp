@@ -58,6 +58,53 @@ Não aparecem como literal porque o app monta a URL em tempo de execução:
 | POST | `/Solicitacoes/{Aceitar\|Descartar}{TipoSolicitacao}` | `retornarEndpointResponderSolicitacao(tipo, acao)` |
 | GET | `/Indicadores/ListaHoras/{ini}/{fim}` | banco de horas |
 
+## Solicitações: o caminho que o app oficial usa para corrigir
+
+As telas **Ajustar Ponto** e **Justificar Ausência** do app oficial não usam
+`IncluirPonto`. Elas criam **solicitações**, que vão para aprovação do gestor:
+
+```js
+// postSolicitacaoAsync(solicitacao)
+const corpo = Object.assign({}, solicitacao, {
+  dataInicioAfastamento: formatIsoDate(s.dataInicioAfastamento),
+  dataFimAfastamento:    formatIsoDate(s.dataFimAfastamento),
+});
+let endpoint = '/Solicitacoes';
+if (s.tipo === TipoSolicitacao.SolicitacaoFerias)  endpoint = '/Solicitacoes/Ferias';
+else if (ehSolicitacaoAfastamento(s.tipo))         endpoint = '/Solicitacoes/Afastamento';
+request({ endpoint, method: 'POST', jsonBody: corpo });
+```
+
+Ou seja: **um POST só, com o campo `tipo` decidindo tudo.** Férias e afastamento
+têm rota própria; o resto cai em `/Solicitacoes`.
+
+Valores de `TipoSolicitacao` recuperados do enum:
+
+| valor | nome |
+|---|---|
+| 15 | `Afastamento` |
+| 16 | `ExclusaoAfastamento` |
+| 19 | `JustificarInconsistenciaExtras` |
+| 20 | `JustificarInconsistenciaFaltas` |
+| 21 | `SolicitacaoFerias` |
+| 22 | `VendaFerias` |
+
+**O que falta:** o `tipo` do Ajuste de Ponto e o formato exato do corpo. Pelas
+telas, o Ajustar Ponto manda o dia inteiro de uma vez — `Entrada 1..5` e
+`Saída 1..5`, mais uma observação — e não uma batida por vez. E o Justificar
+Ausência manda data, período (dia inteiro/parcial), motivo e observação;
+os motivos vêm de `/Justificativas`.
+
+Isso não sai por leitura estática com confiança: o corpo é montado espalhado
+pelo componente. O jeito certo de fechar é capturar um HAR fazendo a operação
+pela Central do Funcionário.
+
+## IncluirPonto é outra coisa
+
+`POST /IncluirPonto` registra uma marcação — é o "bater o ponto" do app, não o
+"corrigir o dia". Serve para bater agora, e pode servir para incluir uma batida
+esquecida, mas não é o fluxo de ajuste com aprovação que as telas oficiais usam.
+
 ## Duas conclusões que importam
 
 **1. Justificar inconsistência é um round-trip.** O app pega o objeto do
