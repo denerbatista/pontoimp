@@ -223,6 +223,8 @@
   <div class="sheet">
     <h3 style="margin:0 0 6px">Incluir batida — <span id="incTitulo"></span></h3>
     <p class="muted" style="margin:0 0 16px;font-size:13px">Vai direto pro seu cartão de ponto no Secullum.</p>
+    <div class="field"><label>Qual batida</label>
+      <select id="incCampo" onchange="trocarCampoInclusao()"></select></div>
     <div class="field"><label>Horário</label>
       <input id="incHora" type="time" oninput="atualizarPreviaInclusao()"></div>
     <div class="field"><label>Justificativa</label>
@@ -900,14 +902,36 @@ async function confirmarJustificativa(){
    construção o que fecha o dia zerado. Grava no cartão de verdade, então
    a tela mostra o efeito no saldo e exige confirmação explícita.
    ===================================================================== */
-let incluindo=null; // {campo, dataIso}
+let incluindo=null; // {dataIso}
 
-function abrirIncluir(campo){
+/* Config e batidas de um dia qualquer, não só de hoje: a batida que faltou
+   quase sempre é percebida no dia seguinte. */
+function cfgDoDia(iso){
+  const wd=new Date(iso+'T12:00:00').getDay();
+  const carga=wd===5?S.cfg.cargaSex:(wd>=1&&wd<=4?S.cfg.cargaSegQui:0);
+  const meta=wd===5?S.cfg.metaSex:(wd>=1&&wd<=4?S.cfg.metaSegQui:'');
+  return {...S.cfg, cargaMin:carga, metaSaida:meta||null};
+}
+function batidasDoDia(iso){
+  if(iso===hojeStr()) return {...S.hoje};
+  const d=(S.hist.dias||[]).find(x=>x.iso===iso);
+  const b=(d&&d.bat)||[];
+  return { entrada:b[0]||null, saidaAlmoco:b[1]||null, voltaAlmoco:b[2]||null, saida:b[3]||null };
+}
+const dataBR=(iso)=>iso.split('-').reverse().join('/');
+
+function abrirIncluir(campo,dataIso){
   if(!S.func.podeManual) return toast('Inclusão manual desabilitada pela empresa.');
-  const plan=planejarDia(S.hoje,cfgHoje());
-  incluindo={ campo, dataIso:hojeStr() };
-  $('#incTitulo').textContent=LABELS[campo];
-  $('#incHora').value=plan.plano[campo]||nowHM();
+  const iso=dataIso||hojeStr();
+  const bat=batidasDoDia(iso);
+  // sem campo escolhido, propõe a primeira que falta naquele dia
+  const alvo=campo||ORDER.find(k=>!bat[k])||'entrada';
+  const plan=planejarDia(bat,cfgDoDia(iso));
+  incluindo={ dataIso:iso };
+  $('#incTitulo').textContent=`${LABELS[alvo]} · ${dataBR(iso)}`;
+  const selC=$('#incCampo');
+  selC.innerHTML=ORDER.map(k=>`<option value="${k}"${k===alvo?' selected':''}${bat[k]?' disabled':''}>${LABELS[k]}${bat[k]?' — já registrada ('+bat[k]+')':''}</option>`).join('');
+  $('#incHora').value=plan.plano[alvo]||nowHM();
   const sel=$('#incJust');
   sel.innerHTML='<option value="">sem justificativa</option>'
     +S.justificativas.map(j=>`<option value="${j.txt.replace(/"/g,'&quot;')}">${j.txt}</option>`).join('');
@@ -919,13 +943,21 @@ function fecharIncluir(){ $('#sheetInc').classList.add('hidden'); incluindo=null
 
 /* Mostra o que aquele horário faz com o saldo — é a informação que importa
    na hora de decidir, e some se o campo estiver inválido. */
+function trocarCampoInclusao(){
+  if(!incluindo) return;
+  const campo=$('#incCampo').value;
+  const p=planejarDia(batidasDoDia(incluindo.dataIso),cfgDoDia(incluindo.dataIso));
+  $('#incHora').value=p.plano[campo]||nowHM();
+  $('#incTitulo').textContent=`${LABELS[campo]} · ${dataBR(incluindo.dataIso)}`;
+  atualizarPreviaInclusao();
+}
 function atualizarPreviaInclusao(){
   if(!incluindo) return;
   const hora=$('#incHora').value;
   const alvo=$('#incPrevia');
   if(!EH_HORA.test(hora)){ alvo.textContent='Informe um horário válido.'; return; }
-  const simulado={...S.hoje, [incluindo.campo]:hora};
-  const p=planejarDia(simulado,cfgHoje());
+  const simulado={...batidasDoDia(incluindo.dataIso), [$('#incCampo').value]:hora};
+  const p=planejarDia(simulado,cfgDoDia(incluindo.dataIso));
   const s=p.saldoRealizadoMin;
   alvo.textContent = p.estagio===4
     ? (s===0?'Com esse horário o dia fecha zerado.'
@@ -941,6 +973,7 @@ async function confirmarInclusao(){
   const btn=$('#incBtn'); btn.disabled=true; btn.textContent='Enviando…';
   try{
     // sem sufixo Z de propósito: com UTC o Secullum receberia a hora deslocada
+    // o Secullum posiciona a batida pela hora, não por um campo — daí só dataHora
     const corpo={ dataHora:`${incluindo.dataIso}T${hora}:00`,
       justificativa:$('#incJust').value||null,
       latitude:null, longitude:null, precisao:null, endereco:null, foto:null,
@@ -1183,8 +1216,13 @@ function linhaDia(d,ehHoje){
   else if(!ehHoje&&d.bat.length) saldoHtml=`<span class="pill warn">${d.bat.length} batida${d.bat.length>1?'s':''}</span>`;
   else if(ehHoje) saldoHtml='<span class="pill mut">em andamento</span>';
   const almocoTxt=(d.bat[1]&&d.bat[2])?`${d.bat[1]}–${d.bat[2]}`:(d.bat[1]||'—');
+  // dia útil com batida faltando: dá pra corrigir daqui, sem depender de ser hoje
+  const faltando=!d.fds && d.bat.length<4;
+  const corrigir=(faltando&&S.func.podeManual)
+    ? `<button class="btn ghost sm" style="width:auto;padding:0 12px;height:30px;margin-left:8px"
+        onclick="abrirIncluir(null,'${d.iso}')">＋ corrigir</button>` : '';
   return `<div class="dia ${ehHoje?'diaHoje':''} ${d.fds?'diaFds':''}">
-    <div class="diaHead"><b>${d.dia} ${d.data}</b>${ehHoje?'<span class="pill ok" style="margin-left:8px">hoje</span>':''}<span style="flex:1"></span>${saldoHtml}</div>
+    <div class="diaHead"><b>${d.dia} ${d.data}</b>${ehHoje?'<span class="pill ok" style="margin-left:8px">hoje</span>':''}<span style="flex:1"></span>${saldoHtml}${corrigir}</div>
     ${(d.fds&&!d.bat.length)?'':`<div class="batChips">
       ${chipBat('🏢 entrada',d.bat[0])}
       ${chipBat('🍽️ almoço',almocoTxt)}
