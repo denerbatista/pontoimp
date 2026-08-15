@@ -355,6 +355,27 @@ const server = http.createServer((req,res)=>{
 
     const dow=HOJE.getDay();
     if(dow>=1&&dow<=5){
+      // o relógio está fixo às 09:00 e a entrada era 08:00: 60min de atraso.
+      // Antes a tela dizia "esperando o Secullum processar" pra sempre.
+      const linha = await page.textContent('#app');
+      check('batida atrasada deixa de dizer "esperando"',
+        !/esperando o Secullum processar/.test(linha));
+      check('diz que a batida não chegou, e há quanto tempo',
+        /não chegou do Secullum/.test(linha) && /01:00 atrás/.test(linha));
+      check('estado de espera vale só nos primeiros minutos', await page.evaluate(()=>{
+        const p=batidaPendente();
+        return p && p.sumiu===true && p.atraso===60;
+      }));
+
+      // remover a meta: com o campo sempre preenchido, sem isto não há como limpar
+      check('remover meta volta pra saída que zera o dia', await page.evaluate(()=>{
+        S.hoje.metaHoje='21:23'; save(); render();
+        const tinha=document.querySelector('#views').textContent.includes('Remover a meta de hoje');
+        removerMetaHoje();
+        return tinha && S.hoje.metaHoje==='' &&
+          !document.querySelector('#views').textContent.includes('Remover a meta de hoje');
+      }));
+
       check('permissão da empresa é lida do /me', await page.evaluate(()=>S.func.podeManual===true));
       check('botão de incluir aparece nas batidas que faltam',
         (await page.locator('.tl .incBtn').count())>0);
@@ -425,6 +446,46 @@ const server = http.createServer((req,res)=>{
       }));
     }
     check('sem erros de JS no ponto manual', errs.length===0 || (console.log('   errs:',errs), false));
+    await page.close();
+  }
+
+  // ---- 5) rodando dentro do APK: a interface tem que parar de falar como site
+  {
+    const page = await browser.newPage();
+    const errs=[]; page.on('pageerror',e=>errs.push(String(e)));
+    const agendados=[];
+    await page.exposeFunction('registrarAgenda', (j)=>agendados.push(j));
+    await page.addInitScript(({port})=>{
+      // a ponte que o WebView do app injeta
+      window.AndroidAlarme = { agendar:(j)=>window.registrarAgenda(j), disponivel:()=>true };
+      const d=new Date(); const hoje=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      localStorage.setItem('pontoimp.v2',JSON.stringify({ gateway:'http://localhost:'+port+'/gw',
+        auth:{banco:'1',tipo:'0',usuario:'9',senha:'',token:'fake',lembrar:true},
+        func:{nome:'Dener Batista',empresa:'Impacta',podeManual:false},
+        cfg:{cargaSegQui:492,cargaSex:432,entradaPadrao:'08:00',saidaAlmocoPadrao:'12:00',almocoMin:108,almocoPiso:60,
+             compensarAtrasoNoAlmoco:true,adiantamento:'sair_cedo',metaSegQui:'',metaSex:'',toleranciaMin:5,
+             ativo:true,alarmes:true,modoAlarme:true,pollMin:3},
+        hoje:{data:hoje,entrada:'08:00',saidaAlmoco:null,voltaAlmoco:null,saida:null,almocoPrevisto:null,snoozeAte:null,perguntaFeita:false,metaHoje:''},
+        hist:{ts:0,dias:[]}, justificativas:[], notificados:{}, ultimaSyncMs:Date.now() }));
+    },{port:PORT});
+    await page.clock.setFixedTime(HOJE);
+    await page.goto(`http://localhost:${PORT}/`);
+    await page.waitForTimeout(1000);
+
+    check('a página reconhece que está dentro do app', await page.evaluate(()=>temPonteNativa()));
+    check('entrega a agenda pro lado nativo', agendados.length>0
+      && Array.isArray(JSON.parse(agendados[0])));
+    check('não pede permissão de notificação do navegador',
+      await page.locator('#convite').isHidden());
+
+    await page.click('#nav button[data-v="cfg"]');
+    await page.waitForTimeout(250);
+    const cfg = await page.textContent('#views');
+    check('some o botão de instalar, que não faz sentido no app', !/Instalar no celular/.test(cfg));
+    check('some o push, substituído pelo alarme do sistema', !/Avisar com o app fechado/.test(cfg));
+    check('aparece o remarcar alarmes', /Remarcar alarmes/.test(cfg));
+    check('explica que o alarme é do sistema', /despertador do sistema/.test(cfg));
+    check('sem erros de JS dentro do app', errs.length===0 || (console.log('   errs:',errs), false));
     await page.close();
   }
 
