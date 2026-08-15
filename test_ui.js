@@ -8,7 +8,10 @@ const PORT = 8765;
 const EH_HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
 const MIME = { '.html':'text/html', '.js':'text/javascript', '.png':'image/png', '.webmanifest':'application/manifest+json' };
 const isoLocal = (d)=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-const diasAtras = (n)=>{ const d=new Date(); d.setDate(d.getDate()-n); return d; };
+// Data fixa numa quinta às 09:00: sem isto a suíte roda diferente no fim de
+// semana (o app mostra tela de folga) e metade das checagens é pulada em silêncio.
+const HOJE = new Date(2026, 7, 13, 9, 0, 0);
+const diasAtras = (n)=>{ const d=new Date(HOJE); d.setDate(d.getDate()-n); return d; };
 
 // gateway fake em /gw: espelho com hoje (1 batida), ontem completo, anteontem completo, D-3 vazio
 function espelhoFake(){
@@ -19,7 +22,8 @@ function espelhoFake(){
     { data: isoLocal(diasAtras(3))+'T12:00:00', batidas:[] },
   ]};
 }
-let ultimoPonto = null; // corpo do último POST /me/ponto, pra conferir o que sai daqui
+let ultimoPonto = null;         // corpo do último POST /me/ponto
+let ultimaJustificativa = null; // corpo do último POST /me/inconsistencia
 const server = http.createServer((req,res)=>{
   let p = req.url.split('?')[0];
   // ---- gateway com inclusão manual habilitada
@@ -32,6 +36,15 @@ const server = http.createServer((req,res)=>{
   if(p.startsWith('/gwman/me/espelho')){ res.setHeader('Content-Type','application/json');
     res.end(JSON.stringify({ lista:[{ data:isoLocal(diasAtras(0))+'T12:00:00', batidas:[] }],
       justificativas:[{id:1,descricao:'Esquecimento'},{id:2,descricao:'Problema no relógio'}] })); return; }
+  if(p==='/gwman/me/inconsistencia' && req.method==='POST'){
+    let b=''; req.on('data',d=>b+=d);
+    req.on('end',()=>{ try{ ultimaJustificativa=JSON.parse(b); }catch(e){ ultimaJustificativa={naoEhJson:b}; }
+      res.setHeader('Content-Type','application/json'); res.end('{"ok":true}'); });
+    return;
+  }
+  if(p.startsWith('/gwman/me/inconsistencias')){ res.setHeader('Content-Type','application/json');
+    res.end(JSON.stringify([{ id:77, data:'2026-08-10T00:00:00', tipo:'Falta de marcação',
+      descricao:'Saída não registrada', status:0, campoInterno:'preservar' }])); return; }
   if(p==='/gwman/me'){ res.setHeader('Content-Type','application/json');
     res.end(JSON.stringify({nome:'Dener Batista',empresa:'Impacta',podeIncluirPontoManual:true})); return; }
   if(p==='/gw/me'){ res.setHeader('Content-Type','application/json');
@@ -58,6 +71,7 @@ const server = http.createServer((req,res)=>{
   {
     const page = await browser.newPage();
     const errs=[]; page.on('pageerror',e=>errs.push(String(e)));
+    await page.clock.setFixedTime(HOJE);
     await page.goto(`http://localhost:${PORT}/`);
     await page.waitForTimeout(400);
     check('login visível sem sessão', await page.locator('#login').isVisible());
@@ -84,17 +98,18 @@ const server = http.createServer((req,res)=>{
         hist:{ts:0,dias:[]}, notificados:{}, ultimaSyncMs:Date.now() };
       localStorage.setItem('pontoimp.v2',JSON.stringify(st));
     },{port:PORT});
+    await page.clock.setFixedTime(HOJE);
     await page.goto(`http://localhost:${PORT}/`);
     await page.waitForTimeout(900);
     check('app visível com sessão salva', await page.locator('#app').isVisible());
-    const dow=new Date().getDay(), util=dow>=1&&dow<=5;
+    const dow=HOJE.getDay(), util=dow>=1&&dow<=5;
     const h=(m)=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
     const carga=dow===5?432:492;
     if(util){
       const body=await page.textContent('body');
       check(`saída exata ${h(480+carga+108)} na tela`, body.includes(h(480+carga+108)));
       // ampulheta: já passou do almoço planejado e a batida não veio
-      const passouAlmoco = (new Date().getHours()*60+new Date().getMinutes()) >= 720;
+      const passouAlmoco = (HOJE.getHours()*60+HOJE.getMinutes()) >= 720;
       if(passouAlmoco) check('ampulheta de batida pendente', body.includes('esperando o Secullum processar'));
 
       // navegação: barra inferior, aba ativa e logo voltando pro início
@@ -274,6 +289,7 @@ const server = http.createServer((req,res)=>{
         hoje:{data:hoje,entrada:null,saidaAlmoco:null,voltaAlmoco:null,saida:null,almocoPrevisto:null,snoozeAte:null,perguntaFeita:false,metaHoje:''},
         hist:{ts:0,dias:[]}, notificados:{}, ultimaSyncMs:Date.now() }));
     },{port:PORT});
+    await page.clock.setFixedTime(HOJE);
     await page.goto(`http://localhost:${PORT}/`);
     await page.waitForTimeout(1100);
     const txt = await page.textContent('body');
@@ -289,7 +305,7 @@ const server = http.createServer((req,res)=>{
       EH_HORA.test(planejarDia(S.hoje,cfgHoje()).alvoSaida||'')));
 
     // meta pré-preenchida: o campo nunca pode abrir vazio
-    const dow=new Date().getDay();
+    const dow=HOJE.getDay();
     if(dow>=1&&dow<=5){
       await page.click('#nav button[data-v="hoje"]');
       await page.waitForTimeout(200);
@@ -333,10 +349,11 @@ const server = http.createServer((req,res)=>{
         hoje:{data:hoje,entrada:null,saidaAlmoco:null,voltaAlmoco:null,saida:null,almocoPrevisto:null,snoozeAte:null,perguntaFeita:false,metaHoje:''},
         hist:{ts:0,dias:[]}, justificativas:[], notificados:{}, ultimaSyncMs:Date.now() }));
     },{port:PORT});
+    await page.clock.setFixedTime(HOJE);
     await page.goto(`http://localhost:${PORT}/`);
     await page.waitForTimeout(1200);
 
-    const dow=new Date().getDay();
+    const dow=HOJE.getDay();
     if(dow>=1&&dow<=5){
       check('permissão da empresa é lida do /me', await page.evaluate(()=>S.func.podeManual===true));
       check('botão de incluir aparece nas batidas que faltam',
@@ -370,6 +387,33 @@ const server = http.createServer((req,res)=>{
       check('sheet fecha depois de registrar', await page.locator('#sheetInc').isHidden());
 
       // o toast não pode cair em cima do botão que o usuário vai tocar
+      // inconsistências: o contrato é devolver o objeto inteiro, só com a justificativa
+      check('pendência do Secullum aparece na tela',
+        /Pendências do Secullum/.test(await page.textContent('#app'))
+        && (await page.locator('.tl .jusLinha').count())===1);
+
+      await page.click('.tl .jusLinha');
+      await page.waitForTimeout(250);
+      check('sheet de justificativa abre com a pendência descrita',
+        await page.locator('#sheetJus').isVisible()
+        && /10\/08\/2026/.test(await page.textContent('#jusTxt')));
+      check('lista de justificativas vem do espelho',
+        (await page.locator('#jusSel option').count())===2);
+
+      await page.fill('#jusLivre','Esqueci de bater na saída');
+      await page.click('#jusBtn');
+      await page.waitForTimeout(600);
+
+      const j = ultimaJustificativa;
+      check('enviou a justificativa', !!j);
+      check('devolve o objeto original sem mexer', !!j
+        && j.id===77 && j.status===0 && j.campoInterno==='preservar'
+        && j.tipo==='Falta de marcação');
+      check('só acrescenta o campo justificativa',
+        !!j && j.justificativa==='Esqueci de bater na saída');
+      check('texto livre tem prioridade sobre o select',
+        !!j && j.justificativa!=='Esquecimento');
+
       check('toast não cobre o botão da sheet', await page.evaluate(async()=>{
         abrirIncluir('entrada'); toast('mensagem de teste');
         await new Promise(r=>setTimeout(r,120));
