@@ -51,6 +51,9 @@ const server = http.createServer((req,res)=>{
     return;
   }
   if(p==='/gwraw/me/inconsistencia' && req.method==='POST'){ res.statusCode=404; res.end('{}'); return; }
+  if(p==='/gwraw/me/ponto' && req.method==='POST'){ res.statusCode=404; res.end('{}'); return; }
+  if(p==='/gwraw/me'){ res.setHeader('Content-Type','application/json');
+    res.end(JSON.stringify({nome:'D',empresa:'I',podeIncluirPontoManual:true})); return; }
   if(p.startsWith('/gwraw/me/espelho')){ res.setHeader('Content-Type','application/json');
     res.end(JSON.stringify({ lista:[{ data:isoLocal(diasAtras(0))+'T12:00:00', batidas:[] }] })); return; }
   if(p.startsWith('/gwraw/')){ res.statusCode=404; res.end('{}'); return; }
@@ -490,6 +493,17 @@ const server = http.createServer((req,res)=>{
     await page.waitForTimeout(400);
     check('envio sem o patch culpa o gateway, não o Secullum',
       /gateway ainda não tem a rota/i.test(await page.textContent('#toast')));
+
+    // o gateway em produção também não tem POST /me/ponto: o ＋ precisa dizer isso
+    await page.evaluate(()=>fecharJustificar()); // a sheet fica aberta no erro, e é o certo
+    await page.click('#nav button[data-v="hoje"]');
+    await page.waitForTimeout(200);
+    await page.click('.tl .incBtn');
+    await page.waitForTimeout(250);
+    await page.click('#incBtn');
+    await page.waitForTimeout(500);
+    check('incluir batida sem a rota aponta pro gateway',
+      /gateway ainda não tem a rota \/me\/ponto/i.test(await page.textContent('#toast')));
     check('sem erros de JS no fallback', errs.length===0 || (console.log('   errs:',errs), false));
     await page.close();
   }

@@ -948,6 +948,8 @@ async function confirmarInclusao(){
     let r=await apiPost('/me/ponto',corpo);
     if(r.status===401&&await reloginSilencioso()) r=await apiPost('/me/ponto',corpo);
     if(!r.ok){
+      // 404 é o gateway sem a rota, não o Secullum recusando a batida
+      if(r.status===404) return toast('O gateway ainda não tem a rota /me/ponto. Falta aplicar as rotas no worker.');
       let msg='';
       try{ const j=await r.json(); msg=j.erro||j.mensagem||''; }catch(e){}
       toast(msg?('Recusado: '+msg):('O Secullum recusou ('+r.status+').'));
