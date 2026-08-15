@@ -42,6 +42,18 @@ const server = http.createServer((req,res)=>{
       res.setHeader('Content-Type','application/json'); res.end('{"ok":true}'); });
     return;
   }
+  // gateway sem a rota dedicada: só a escotilha /me/raw, como está publicado hoje
+  if(p==='/gwraw/me/raw'){
+    const q=new URL(req.url,'http://x').searchParams.get('endpoint')||'';
+    res.setHeader('Content-Type','application/json');
+    res.end(/^\/Inconsistencias\//.test(q)
+      ? JSON.stringify([{ id:88, data:'2026-08-11T00:00:00', descricao:'Via raw' }]) : '{}');
+    return;
+  }
+  if(p==='/gwraw/me/inconsistencia' && req.method==='POST'){ res.statusCode=404; res.end('{}'); return; }
+  if(p.startsWith('/gwraw/me/espelho')){ res.setHeader('Content-Type','application/json');
+    res.end(JSON.stringify({ lista:[{ data:isoLocal(diasAtras(0))+'T12:00:00', batidas:[] }] })); return; }
+  if(p.startsWith('/gwraw/')){ res.statusCode=404; res.end('{}'); return; }
   if(p.startsWith('/gwman/me/inconsistencias')){ res.setHeader('Content-Type','application/json');
     res.end(JSON.stringify([{ id:77, data:'2026-08-10T00:00:00', tipo:'Falta de marcação',
       descricao:'Saída não registrada', status:0, campoInterno:'preservar' }])); return; }
@@ -446,6 +458,39 @@ const server = http.createServer((req,res)=>{
       }));
     }
     check('sem erros de JS no ponto manual', errs.length===0 || (console.log('   errs:',errs), false));
+    await page.close();
+  }
+
+  // ---- 4b) gateway sem o patch: a listagem ainda funciona pela escotilha /me/raw
+  {
+    const page = await browser.newPage();
+    const errs=[]; page.on('pageerror',e=>errs.push(String(e)));
+    await page.addInitScript(({port})=>{
+      const d=new Date(); const hoje=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      localStorage.setItem('pontoimp.v2',JSON.stringify({ gateway:'http://localhost:'+port+'/gwraw',
+        auth:{banco:'1',tipo:'0',usuario:'9',senha:'',token:'fake',lembrar:true},
+        func:{nome:'D',empresa:'I',podeManual:false},
+        cfg:{cargaSegQui:492,cargaSex:432,entradaPadrao:'08:00',saidaAlmocoPadrao:'12:00',almocoMin:108,almocoPiso:60,
+             compensarAtrasoNoAlmoco:true,adiantamento:'sair_cedo',metaSegQui:'',metaSex:'',toleranciaMin:5,
+             ativo:true,alarmes:true,modoAlarme:true,pollMin:3},
+        hoje:{data:hoje,entrada:'08:00',saidaAlmoco:null,voltaAlmoco:null,saida:null,almocoPrevisto:null,snoozeAte:null,perguntaFeita:false,metaHoje:''},
+        hist:{ts:0,dias:[]}, justificativas:[], notificados:{}, ultimaSyncMs:Date.now() }));
+    },{port:PORT});
+    await page.clock.setFixedTime(HOJE);
+    await page.goto(`http://localhost:${PORT}/`);
+    await page.waitForTimeout(1100);
+
+    check('lista as pendências mesmo sem o patch, via /me/raw',
+      /Via raw/.test(await page.textContent('#app')));
+
+    await page.click('.tl .jusLinha');
+    await page.waitForTimeout(200);
+    await page.fill('#jusLivre','teste');
+    await page.click('#jusBtn');
+    await page.waitForTimeout(400);
+    check('envio sem o patch culpa o gateway, não o Secullum',
+      /gateway ainda não tem a rota/i.test(await page.textContent('#toast')));
+    check('sem erros de JS no fallback', errs.length===0 || (console.log('   errs:',errs), false));
     await page.close();
   }
 
