@@ -850,6 +850,12 @@ async function carregarInconsistencias(){
   }catch(e){ inconsistencias=[]; }
 }
 
+/* Casa a pendência do Secullum com a linha do dia no histórico, pra você
+   justificar olhando o dia errado em vez de caçar num card separado. */
+function incDoDia(iso){
+  return inconsistencias.findIndex(i=>String(i.data||i.Data||'').slice(0,10)===iso);
+}
+
 // o schema não é fixo; mostramos o que der e nunca quebramos por campo ausente
 const descreverInc=(i)=>{
   const dt=String(i.data||i.Data||'').slice(0,10);
@@ -1221,8 +1227,13 @@ function linhaDia(d,ehHoje){
   const corrigir=(faltando&&S.func.podeManual)
     ? `<button class="btn ghost sm" style="width:auto;padding:0 12px;height:30px;margin-left:8px"
         onclick="abrirIncluir(null,'${d.iso}')">＋ corrigir</button>` : '';
+  // o Secullum apontou pendência nesse dia: justifica daqui mesmo
+  const iInc=incDoDia(d.iso);
+  const justificar=iInc>=0
+    ? `<button class="btn ghost sm jusLinha" style="width:auto;padding:0 12px;height:30px;margin-left:8px;color:var(--warn)"
+        onclick="abrirJustificar(${iInc})">⚠️ justificar</button>` : '';
   return `<div class="dia ${ehHoje?'diaHoje':''} ${d.fds?'diaFds':''}">
-    <div class="diaHead"><b>${d.dia} ${d.data}</b>${ehHoje?'<span class="pill ok" style="margin-left:8px">hoje</span>':''}<span style="flex:1"></span>${saldoHtml}${corrigir}</div>
+    <div class="diaHead"><b>${d.dia} ${d.data}</b>${ehHoje?'<span class="pill ok" style="margin-left:8px">hoje</span>':''}<span style="flex:1"></span>${saldoHtml}${justificar}${corrigir}</div>
     ${(d.fds&&!d.bat.length)?'':`<div class="batChips">
       ${chipBat('🏢 entrada',d.bat[0])}
       ${chipBat('🍽️ almoço',almocoTxt)}
