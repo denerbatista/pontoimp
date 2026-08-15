@@ -1030,6 +1030,24 @@ const ORDER=['entrada','saidaAlmoco','voltaAlmoco','saida'];
 function render(){ marcarNav(); const box=$('#views'); if(!box) return; box.innerHTML='';
   box.appendChild(view==='cfg'?viewCfg():view==='hist'?viewHist():viewHoje()); }
 
+/* Pendência é de dia passado: continua valendo mesmo quando hoje é folga.
+   Antes ficava presa dentro da tela de dia útil e sumia no fim de semana. */
+function cardPendencias(){
+  if(!inconsistencias.length) return null;
+  const linhas=inconsistencias.map((inc,i)=>{
+    const d=descreverInc(inc);
+    return `<div class="tl">
+      <div class="dot">⚠️</div>
+      <div class="lb">${d.data}<small>${d.txt}</small></div>
+      <div class="hr"></div>
+      <button class="btn ghost sm jusLinha" style="width:auto;padding:0 12px;height:32px" onclick="abrirJustificar(${i})">justificar</button>
+    </div>`;
+  }).join('');
+  return el(`<div class="card"><h3>Pendências do Secullum
+    <span class="muted" style="text-transform:none;font-weight:500">· esperando justificativa</span></h3>
+    <div class="timeline">${linhas}</div></div>`);
+}
+
 function viewHoje(){
   const wrap=el('<div class="cards"></div>');
   if(ehFolga()){
@@ -1037,6 +1055,7 @@ function viewHoje(){
       <div style="font-size:44px">🎉</div>
       <h3 style="border:0">Hoje é folga</h3>
       <p class="muted" style="margin:0">Fim de semana, sem carga. O monitor volta segunda.</p></div>`));
+    const p=cardPendencias(); if(p) wrap.appendChild(p);
     return wrap;
   }
   const plan=planejarDia(S.hoje,cfgHoje());
@@ -1070,20 +1089,7 @@ function viewHoje(){
     <div class="pill ${sitCls}" style="width:100%;box-sizing:border-box;justify-content:center;margin-top:12px;padding:11px;white-space:normal;text-align:center">${sit.txt}</div>
   </div>`));
 
-  if(inconsistencias.length){
-    const linhas=inconsistencias.map((inc,i)=>{
-      const d=descreverInc(inc);
-      return `<div class="tl">
-        <div class="dot">⚠️</div>
-        <div class="lb">${d.data}<small>${d.txt}</small></div>
-        <div class="hr"></div>
-        <button class="btn ghost sm jusLinha" style="width:auto;padding:0 12px;height:32px" onclick="abrirJustificar(${i})">justificar</button>
-      </div>`;
-    }).join('');
-    wrap.appendChild(el(`<div class="card"><h3>Pendências do Secullum
-      <span class="muted" style="text-transform:none;font-weight:500">· esperando justificativa</span></h3>
-      <div class="timeline">${linhas}</div></div>`));
-  }
+  { const p=cardPendencias(); if(p) wrap.appendChild(p); }
 
   const tl=el(`<div class="card"><h3>Batidas de hoje <span class="muted" style="text-transform:none;font-weight:500">· lidas do Secullum</span></h3><div class="timeline"></div></div>`);
   const tlBox=tl.querySelector('.timeline');

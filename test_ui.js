@@ -494,6 +494,32 @@ const server = http.createServer((req,res)=>{
     await page.close();
   }
 
+  // ---- 4c) sábado: a tela de folga não pode engolir as pendências de dias passados
+  {
+    const page = await browser.newPage();
+    const errs=[]; page.on('pageerror',e=>errs.push(String(e)));
+    await page.addInitScript(({port})=>{
+      localStorage.setItem('pontoimp.v2',JSON.stringify({ gateway:'http://localhost:'+port+'/gwraw',
+        auth:{banco:'1',tipo:'0',usuario:'9',senha:'',token:'fake',lembrar:true},
+        func:{nome:'D',empresa:'I',podeManual:false},
+        cfg:{cargaSegQui:492,cargaSex:432,entradaPadrao:'08:00',saidaAlmocoPadrao:'12:00',almocoMin:108,almocoPiso:60,
+             compensarAtrasoNoAlmoco:true,adiantamento:'sair_cedo',metaSegQui:'',metaSex:'',toleranciaMin:5,
+             ativo:true,alarmes:true,modoAlarme:true,pollMin:3},
+        hoje:{data:'2026-08-15',entrada:null,saidaAlmoco:null,voltaAlmoco:null,saida:null,almocoPrevisto:null,snoozeAte:null,perguntaFeita:false,metaHoje:''},
+        hist:{ts:0,dias:[]}, justificativas:[], notificados:{}, ultimaSyncMs:Date.now() }));
+    },{port:PORT});
+    await page.clock.setFixedTime(new Date(2026, 7, 15, 10, 0, 0)); // sábado
+    await page.goto(`http://localhost:${PORT}/`);
+    await page.waitForTimeout(1100);
+
+    const app = await page.textContent('#app');
+    check('sábado mostra a tela de folga', /Hoje é folga/.test(app));
+    check('mas a pendência continua visível na folga', /Pendências do Secullum/.test(app) && /Via raw/.test(app));
+    check('e ainda dá pra justificar dali', (await page.locator('.tl .jusLinha').count())===1);
+    check('sem erros de JS no sábado', errs.length===0 || (console.log('   errs:',errs), false));
+    await page.close();
+  }
+
   // ---- 5) rodando dentro do APK: a interface tem que parar de falar como site
   {
     const page = await browser.newPage();
