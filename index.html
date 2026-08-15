@@ -996,7 +996,10 @@ function batidaPendente(){
   if(alvo==null) return null;
   const agora=nowMin();
   if(agora<alvo) return null;
-  return {campo, desde:hm(alvo), urgente:(agora-alvo)<=25};
+  const atraso=agora-alvo;
+  // depois de ~20min o Secullum já processou: se não chegou, a batida não existe.
+  // Continuar dizendo "esperando" trava a tela e esconde o que fazer.
+  return {campo, desde:hm(alvo), atraso, urgente:atraso<=25, sumiu:atraso>20};
 }
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&S.auth.token){ sincronizar(); checarAvisos(); } });
 
@@ -1083,21 +1086,32 @@ function viewHoje(){
     const real=S.hoje[k], alvo=plan.plano[k], isNext=(k===prox);
     const aguardando=isNext&&pend&&pend.campo===k;
     tlBox.appendChild(el(`<div class="tl ${real?'done':''} ${isNext?'next':''}">
-      <div class="dot">${real?'✓':(aguardando?'⏳':(isNext?'→':'○'))}</div>
-      <div class="lb">${LABELS[k]}<small>${real?'registrado no Secullum':(aguardando?`bateu? esperando o Secullum processar (previsto ${pend.desde})`:'previsto pelo motor')}</small></div>
+      <div class="dot">${real?'✓':(aguardando?(pend.sumiu?'⚠️':'⏳'):(isNext?'→':'○'))}</div>
+      <div class="lb">${LABELS[k]}<small>${real?'registrado no Secullum'
+        :aguardando?(pend.sumiu
+          ? `não chegou do Secullum — previsto ${pend.desde}, ${hm(pend.atraso)} atrás`
+          : `bateu? esperando o Secullum processar (previsto ${pend.desde})`)
+        :'previsto pelo motor'}</small></div>
       <div class="hr">${real||(alvo?('<small>'+alvo+'</small>'):'--:--')}</div>
       ${(!real&&S.func.podeManual&&alvo)?`<button class="btn ghost sm incBtn" onclick="abrirIncluir('${k}')" title="Incluir esta batida">＋</button>`:''}</div>`));
   });
   if(plan.estagio<=1) tl.appendChild(el(`<button class="btn ghost sm" style="width:100%;margin-top:10px" onclick="abrirPerguntaAlmoco()">🍽️ Ajustar almoço de hoje</button>`));
   wrap.appendChild(tl);
 
+  // pra dizer o que a meta está custando: quanto o dia fecharia sem ela
+  const semMeta=planejarDia(S.hoje,{...cfgHoje(), metaSaida:null});
   wrap.appendChild(el(`<div class="card"><h3>Quero sair hoje às…</h3>
     <div class="row2" style="align-items:stretch">
       <div class="field" style="margin:0"><input id="metaHoje" type="time"
         value="${S.hoje.metaHoje||metaCfgHoje()||plan.alvoSaida||''}"></div>
       <button class="btn sm" style="width:100%" onclick="salvarMetaHoje()">Aplicar</button>
     </div>
-    <p class="muted" style="font-size:12px;margin:10px 0 0">Já vem com ${S.hoje.metaHoje?'a meta que você aplicou hoje':(metaCfgHoje()?'a meta padrão dos Ajustes':'a saída que zera o dia')} — mude se quiser outro horário. Uso primeiro seus minutos adiantados; o que faltar desconto do almoço (piso ${hm(S.cfg.almocoPiso)}).</p>
+    ${S.hoje.metaHoje?`<button class="btn ghost sm" style="width:100%;margin-top:9px;color:var(--warn)"
+      onclick="removerMetaHoje()">Remover a meta de hoje (${S.hoje.metaHoje})</button>`:''}
+    <p class="muted" style="font-size:12px;margin:10px 0 0">${S.hoje.metaHoje
+      ? `Meta aplicada por você: <b style="color:var(--txt)">${S.hoje.metaHoje}</b>. Sem ela, o dia zera às ${semMeta.alvoSaida}.`
+      : (metaCfgHoje()?'Sugerido pela meta padrão dos Ajustes.':'Sugerido: é a saída que zera o dia.')
+      } Uso primeiro seus minutos adiantados; o que faltar desconto do almoço (piso ${hm(S.cfg.almocoPiso)}).</p>
   </div>`));
 
   if(plan.avisos.length){
@@ -1115,6 +1129,7 @@ function viewHoje(){
     :'<p class="muted" style="margin:0">Nada agendado por agora. ✌️</p>'}</div>`));
   return wrap;
 }
+function removerMetaHoje(){ S.hoje.metaHoje=''; save(); toast('Meta removida — voltou pra saída que zera o dia.'); render(); }
 function salvarMetaHoje(){ S.hoje.metaHoje=$('#metaHoje').value||''; save();
   toast(S.hoje.metaHoje?('Meta de hoje: '+S.hoje.metaHoje):'Meta de hoje removida'); render(); }
 
@@ -1214,6 +1229,11 @@ function viewCfg(){
     <div class="switchRow"><div class="tx"><b>Alarme de verdade</b><small>sirene em loop + vibração + tela cheia até você desligar (nos eventos na hora H)</small></div>
       <div class="toggle ${g.cfg.modoAlarme?'on':''}" id="c_modoAlarme"></div></div>
     <div class="field" style="margin-top:10px"><label>Atualizar do Secullum a cada (min)</label><input id="c_poll" value="${g.cfg.pollMin}" inputmode="numeric"></div>
+    ${temPonteNativa()?`
+    <div class="row2" style="margin-top:4px">
+      <button class="btn ghost sm" style="width:100%" onclick="armarAlarmesNativos()&&toast('Alarmes remarcados no sistema.')">⏰ Remarcar alarmes</button>
+      <button class="btn ghost sm" style="width:100%" onclick="sincronizar(false)">🔄 Atualizar agora</button>
+    </div>`:`
     <div class="row2">
       <button class="btn ghost sm" style="width:100%" onclick="pedirPermissao()">🔔 Ativar notificações</button>
       <button class="btn ghost sm" style="width:100%" onclick="instalarApp()">📲 Instalar no celular</button>
@@ -1222,9 +1242,11 @@ function viewCfg(){
       <button class="btn ghost sm" style="width:100%" id="b_push"
         onclick="${g.pushInscrito?'cancelarPush()':'assinarPush()'}">${g.pushInscrito?'📡 Desligar push':'📡 Avisar com o app fechado'}</button>
       <button class="btn ghost sm" style="width:100%" onclick="testarPush()">✉️ Testar push</button>
-    </div>
+    </div>`}
     <p class="muted" id="diagNotif" style="font-size:12px;margin:12px 0 0">${diagNotifTexto()}</p>
-    <p class="muted" style="font-size:12px;margin:6px 0 0">Os alarmes tocam com o app aberto — pode estar em segundo plano. Instalado na tela inicial fica melhor ainda.</p>
+    <p class="muted" style="font-size:12px;margin:6px 0 0">${temPonteNativa()
+      ? 'Os alarmes ficam marcados no despertador do sistema: tocam com o app fechado, no silencioso, e abrem a tela. São remarcados a cada sincronização.'
+      : 'Os alarmes tocam com o app aberto — pode estar em segundo plano. Instalado na tela inicial fica melhor ainda.'}</p>
   </div>`);
   const pm=el(`<div class="card"><h3>Ponto manual</h3>
     <p class="muted" style="font-size:13px;margin:0">Inclusão manual: <b style="color:var(--txt)">${diagManual}</b></p>
