@@ -50,6 +50,12 @@ const server = http.createServer((req,res)=>{
       ? JSON.stringify([{ id:88, data:'2026-08-11T00:00:00', descricao:'Via raw' }]) : '{}');
     return;
   }
+  // /health responde nos dois: o que separa o gateway atualizado do antigo é
+  // /me/solicitacoes, que só o gwman tem — no gwraw ela cai no 404 lá embaixo
+  if(p==='/gwman/health'||p==='/gwraw/health'){ res.setHeader('Content-Type','application/json');
+    res.end('{"ok":true}'); return; }
+  if(p.startsWith('/gwman/me/solicitacoes')){ res.setHeader('Content-Type','application/json');
+    res.end('[]'); return; }
   if(p==='/gwraw/me/inconsistencia' && req.method==='POST'){ res.statusCode=404; res.end('{}'); return; }
   if(p==='/gwraw/me/solicitacao' && req.method==='POST'){ res.statusCode=404; res.end('{}'); return; }
   if(p==='/gwraw/me'){ res.setHeader('Content-Type','application/json');
@@ -528,6 +534,14 @@ const server = http.createServer((req,res)=>{
         return !cobre;
       }));
     }
+
+    await page.evaluate(()=>{ fecharIncluir(); go('cfg'); });
+    await page.waitForTimeout(250);
+    await page.click('button:has-text("Testar conexão")');
+    await page.waitForTimeout(600);
+    check('teste de conexão confirma o gateway com as rotas',
+      /com as rotas de ajuste/i.test(await page.textContent('#toast')));
+
     check('sem erros de JS no ponto manual', errs.length===0 || (console.log('   errs:',errs), false));
     await page.close();
   }
@@ -574,6 +588,16 @@ const server = http.createServer((req,res)=>{
     await page.waitForTimeout(600);
     check('ajuste sem a rota aponta pro gateway',
       /gateway ainda não tem a rota \/me\/solicitacao/i.test(await page.textContent('#toast')));
+    // o /health sozinho não distingue gateway novo de velho: os dois respondem.
+    // é o teste de conexão que precisa dizer a verdade sobre as rotas.
+    await page.evaluate(()=>fecharIncluir()); // segue aberta desde o erro acima
+    await page.click('#nav button[data-v="cfg"]');
+    await page.waitForTimeout(250);
+    await page.click('button:has-text("Testar conexão")');
+    await page.waitForTimeout(600);
+    check('teste de conexão acusa o gateway sem as rotas novas',
+      /sem as rotas novas/i.test(await page.textContent('#toast')));
+
     check('sem erros de JS no fallback', errs.length===0 || (console.log('   errs:',errs), false));
     await page.close();
   }
