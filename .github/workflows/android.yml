@@ -34,15 +34,18 @@ jobs:
       # Sem chave fixa, cada build sai com assinatura diferente e o Android
       # recusa a atualização por conflito. Se o secret não existir, o build
       # continua funcionando com a chave de debug do runner — só não atualiza.
+      # A chave vai cifrada no repositório; o secret é só a senha, que é curta
+      # o bastante pra ser colada do celular.
       - name: Chave de assinatura
         env:
-          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE }}
+          SENHA: ${{ secrets.ANDROID_KEYSTORE_SENHA }}
         run: |
-          if [ -n "$KEYSTORE_B64" ]; then
-            printf '%s' "$KEYSTORE_B64" | base64 -d > android/app/pontoimp.jks
+          if [ -n "$SENHA" ]; then
+            openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 \
+              -in android/app/pontoimp.jks.enc -out android/app/pontoimp.jks -pass env:SENHA
             echo "Chave própria aplicada ($(stat -c%s android/app/pontoimp.jks) bytes)."
           else
-            echo "::warning::ANDROID_KEYSTORE não configurado — o APK sairá com assinatura instável e não atualizará por cima do anterior."
+            echo "::warning::ANDROID_KEYSTORE_SENHA não configurado — o APK sairá com assinatura instável e não atualizará por cima do anterior."
           fi
 
       - name: Compilar APK de debug
