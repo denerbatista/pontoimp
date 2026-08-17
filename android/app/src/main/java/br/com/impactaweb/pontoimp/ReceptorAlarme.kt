@@ -6,6 +6,8 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Build
+import android.provider.Settings
 
 /**
  * Chega aqui na hora marcada, mesmo com o app fechado.
@@ -54,7 +56,25 @@ class ReceptorAlarme : BroadcastReceiver() {
             .setOngoing(true)
             .setFullScreenIntent(telaCheia, true)
             .build())
+
+        /* O fullScreenIntent acima só abre a tela sozinho com o aparelho
+           bloqueado ou parado — desbloqueado, o Android mostra apenas o aviso,
+           de propósito, pra app nenhum roubar a tela alheia.
+           Com a permissão de sobrepor telas concedida, podemos subir mesmo
+           assim, que é o comportamento de despertador que se espera aqui. */
+        if (podeSobrepor(ctx)) {
+            runCatching {
+                ctx.startActivity(Intent(ctx, TelaAlarme::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    putExtra("titulo", titulo)
+                    putExtra("corpo", corpo)
+                })
+            }
+        }
     }
+
+    private fun podeSobrepor(ctx: Context) =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(ctx)
 
     private fun abrirApp(ctx: Context, id: Int) = PendingIntent.getActivity(
         ctx, id, Intent(ctx, MainActivity::class.java),
