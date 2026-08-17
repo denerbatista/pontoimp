@@ -56,6 +56,12 @@ object AgendadorAlarmes {
 
     fun rearmarDoDisco(ctx: Context) = armar(ctx, Agenda.ler(ctx))
 
+    /** Quantos alarmes futuros estão marcados agora — é o que prova que funcionou. */
+    fun armadosAgora(ctx: Context): Int {
+        val agora = System.currentTimeMillis()
+        return Agenda.ler(ctx).count { it.ts > agora }
+    }
+
     private fun cancelarTodos(ctx: Context, antigos: List<Evento>) {
         val am = ctx.getSystemService(AlarmManager::class.java)
         antigos.forEach { ev ->
