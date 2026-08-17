@@ -1519,8 +1519,23 @@ function salvarCfg(){
 async function testarGateway(){
   const url=((($('#c_gw')&&$('#c_gw').value.trim())||gwUrl())).replace(/\/$/,'');
   toast('Testando '+url+'…');
-  try{ const r=await fetch(url+'/health'); const j=await r.json(); toast(j.ok?'✓ Gateway online':'Respondeu, mas sem ok'); }
-  catch(e){ toast('Não conectou: '+(e.message||e)); }
+  let ok=false;
+  try{ ok=(await (await fetch(url+'/health')).json()).ok===true; }
+  catch(e){ return toast('Não conectou: '+(e.message||e)); }
+  if(!ok) return toast('Respondeu, mas sem ok — confira a URL.');
+  if(!S.auth.token) return toast('✓ Gateway online. Entre na conta pra conferir as rotas de ajuste.');
+  // /health já existia antes das rotas novas, então sozinho não diz se elas
+  // subiram. /me/solicitacoes mora no mesmo bloco delas e é só leitura: se
+  // responde, ajustar e justificar também estão no ar — e dá pra conferir sem
+  // criar uma solicitação de verdade na fila do gestor só pra testar.
+  const hoje=hojeStr();
+  try{
+    const r=await fetch(url+`/me/solicitacoes?inicio=${hoje}&fim=${hoje}`,
+      {headers:{Authorization:'Bearer '+S.auth.token}});
+    if(r.status===404) return toast('✓ Online, mas sem as rotas novas: ajustar e justificar ainda não funcionam.');
+    if(r.status===401) return toast('✓ Online. A sessão expirou — entre de novo e teste outra vez.');
+    toast('✓ Online, com as rotas de ajuste e justificativa publicadas.');
+  }catch(e){ toast('✓ Online, mas a checagem das rotas falhou: '+(e.message||e)); }
 }
 
 /* =====================================================================
