@@ -31,6 +31,20 @@ jobs:
         with:
           gradle-version: "8.14.3"
 
+      # Sem chave fixa, cada build sai com assinatura diferente e o Android
+      # recusa a atualização por conflito. Se o secret não existir, o build
+      # continua funcionando com a chave de debug do runner — só não atualiza.
+      - name: Chave de assinatura
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            printf '%s' "$KEYSTORE_B64" | base64 -d > android/app/pontoimp.jks
+            echo "Chave própria aplicada ($(stat -c%s android/app/pontoimp.jks) bytes)."
+          else
+            echo "::warning::ANDROID_KEYSTORE não configurado — o APK sairá com assinatura instável e não atualizará por cima do anterior."
+          fi
+
       - name: Compilar APK de debug
         working-directory: android
         env:
