@@ -10,6 +10,9 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
+import android.webkit.JavascriptInterface
+import android.webkit.WebView
+import android.webkit.WebViewClient
 
 /**
  * Vigia o relógio por conta própria, em primeiro plano.
@@ -26,12 +29,16 @@ class ServicoSentinela : Service() {
 
     private val laco = Handler(Looper.getMainLooper())
     private lateinit var tique: Runnable
+    private var ultimaAtualizacao = 0L
 
     override fun onCreate() {
         super.onCreate()
         tique = object : Runnable {
             override fun run() {
                 conferir()
+                // de tempos em tempos busca do Secullum e recalcula, senão os
+                // horários ficariam congelados no último dia em que o app abriu
+                if (System.currentTimeMillis() - ultimaAtualizacao >= INTERVALO_SYNC) recalcular()
                 laco.postDelayed(this, INTERVALO)
             }
         }
@@ -43,6 +50,42 @@ class ServicoSentinela : Service() {
         laco.removeCallbacks(tique)
         laco.post(tique)
         return START_STICKY   // se o sistema matar, volta
+    }
+
+    /**
+     * Sincroniza com o Secullum e recalcula, sem o app aberto.
+     *
+     * O motor vive na página, não aqui — reescrevê-lo em Kotlin seria duas
+     * fontes de verdade pro mesmo cálculo. Em vez disso carregamos a própria
+     * página numa WebView invisível: ela sincroniza, recalcula com as batidas
+     * reais e chama a ponte, que remarca os alarmes. Mesmo caminho de quando
+     * você abre o app.
+     */
+    private fun recalcular() {
+        runCatching {
+            val web = WebView(this)
+            web.settings.javaScriptEnabled = true
+            web.settings.domStorageEnabled = true   // mesma sessão da tela principal
+            web.settings.databaseEnabled = true
+            web.addJavascriptInterface(PonteServico(applicationContext), "AndroidAlarme")
+            web.webViewClient = object : WebViewClient() {
+                override fun onPageFinished(v: WebView?, url: String?) {
+                    // dá tempo do espelho chegar antes de descartar a WebView
+                    laco.postDelayed({ runCatching { v?.destroy() } }, 25_000)
+                }
+            }
+            web.loadUrl(MainActivity.URL_APP)
+            ultimaAtualizacao = System.currentTimeMillis()
+            Log.i("PontoImp", "sentinela: recalculando em segundo plano")
+        }.onFailure { Log.w("PontoImp", "sentinela: falhou ao recalcular", it) }
+    }
+
+    /** Ponte mínima: no segundo plano só interessa remarcar os alarmes. */
+    private class PonteServico(private val ctx: Context) {
+        @JavascriptInterface fun disponivel(): Boolean = true
+        @JavascriptInterface fun agendar(json: String) {
+            AgendadorAlarmes.armar(ctx, Agenda.deTexto(json))
+        }
     }
 
     /** Dispara o que já venceu e ainda não saiu, dentro de uma janela curta. */
@@ -84,6 +127,7 @@ class ServicoSentinela : Service() {
         private const val NOTIF_ID = 4242
         private const val INTERVALO = 30_000L
         private const val JANELA = 5 * 60_000L      // não dispara aviso de horas atrás
+        private const val INTERVALO_SYNC = 20 * 60_000L
         const val PARAR = "br.com.impactaweb.pontoimp.PARAR_SENTINELA"
         private const val PREFS = "pontoimp.sentinela"
         private const val LIGADO = "ligado"
