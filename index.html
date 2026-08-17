@@ -413,7 +413,8 @@ const defState=()=>({
   justificativas:[],
   cfg:{ cargaSegQui:492, cargaSex:432, entradaPadrao:'08:00', saidaAlmocoPadrao:'12:00', almocoMin:108,
         almocoPiso:60, compensarAtrasoNoAlmoco:true, adiantamento:'sair_cedo',
-        metaSegQui:'', metaSex:'', toleranciaMin:5, ativo:true, alarmes:true, modoAlarme:true, pollMin:3 },
+        metaSegQui:'', metaSex:'', toleranciaMin:5, ativo:true, alarmes:true, modoAlarme:true, pollMin:3,
+        avisoAntes:10 },
   hoje:defHoje(),
   hist:{ts:0,dias:[]},
   notificados:{}, ultimaSyncMs:null,
@@ -447,6 +448,8 @@ function diaSemana(){ return new Date().getDay(); }            // 0=dom .. 6=sá
 function ehFolga(){ const d=diaSemana(); return d===0||d===6; }
 function cargaHojeMin(){ const d=diaSemana(); if(d===5) return S.cfg.cargaSex; if(d>=1&&d<=4) return S.cfg.cargaSegQui; return 0; }
 function nomeDiaCarga(){ const d=diaSemana(); if(d===5) return 'sexta'; if(d>=1&&d<=4) return 'seg–qui'; return 'fim de semana'; }
+// quanto antes do horário o aviso sai; 0 desliga os avisos prévios
+function avisoAntesMin(){ const v=parseInt(S.cfg.avisoAntes); return Number.isFinite(v)&&v>=0?Math.min(v,60):10; }
 function metaCfgHoje(){ const d=diaSemana(); if(d===5) return S.cfg.metaSex; if(d>=1&&d<=4) return S.cfg.metaSegQui; return ''; }
 // o almoço previsto do dia e a meta de hoje entram como "padrão do dia" no motor
 function cfgHoje(){ return {...S.cfg, cargaMin:cargaHojeMin(), metaSaida:(S.hoje.metaHoje||metaCfgHoje()||null),
@@ -613,21 +616,25 @@ function eventosDoDia(plan){
   const est=plan.estagio;
   if(est===0){
     const e=toMin(S.cfg.entradaPadrao);
-    ev.push({chave:'ent_pre',min:e-5,titulo:'🏢 Entrada em 5 min',corpo:`Registre a entrada até ${S.cfg.entradaPadrao} pra não abrir atraso.`});
+    const av=avisoAntesMin();
+    ev.push({chave:'ent_pre',min:e-av,titulo:`🏢 Entrada em ${av} min`,corpo:`Registre a entrada até ${S.cfg.entradaPadrao} pra não abrir atraso.`});
     ev.push({chave:'ent',min:e,titulo:'🏢 Hora de entrar',corpo:`Entrada padrão ${S.cfg.entradaPadrao}.`,nivel:'alarme'});
   } else if(est===1){
     const alvo=S.hoje.snoozeAte!=null?S.hoje.snoozeAte:toMin(plan.plano.saidaAlmoco);
     if(!S.hoje.perguntaFeita)
-      ev.push({chave:'alm_ask_'+alvo,min:alvo-10,titulo:'🍽️ Almoço às '+hm(alvo),corpo:'Vai no padrão, mais tarde ou outro horário? Toque pra escolher.',acao:'almoco'});
+      ev.push({chave:'alm_ask_'+alvo,min:alvo-avisoAntesMin(),titulo:'🍽️ Almoço às '+hm(alvo),corpo:'Vai no padrão, mais tarde ou outro horário? Toque pra escolher.',acao:'almoco'});
     ev.push({chave:'alm_'+alvo,min:alvo,titulo:'🍽️ Hora do almoço',corpo:`Saída planejada ${hm(alvo)}. Bom apetite!`,nivel:'alarme'});
   } else if(est===2){
     const v=toMin(plan.plano.voltaAlmoco);
-    ev.push({chave:'volta_pre_'+v,min:v-5,titulo:'💼 Volta em 5 min',corpo:`Volta às ${plan.plano.voltaAlmoco} — almoço de ${hm(plan.almocoPlanejado)} hoje.`});
+    const av2=avisoAntesMin();
+    ev.push({chave:'volta_pre_'+v,min:v-av2,titulo:`💼 Volta em ${av2} min`,corpo:`Volta às ${plan.plano.voltaAlmoco} — almoço de ${hm(plan.almocoPlanejado)} hoje.`});
     ev.push({chave:'volta_'+v,min:v,titulo:'💼 Hora de voltar',corpo:`Registre a volta às ${plan.plano.voltaAlmoco} pra fechar certinho.`,nivel:'alarme'});
   } else if(est===3){
     const s=toMin(plan.alvoSaida);
-    ev.push({chave:'sai_pre10_'+s,min:s-10,titulo:'🏁 Saída em 10 min',corpo:`Saída exata ${plan.alvoSaida} zera o dia.`});
-    ev.push({chave:'sai_pre5_'+s,min:s-5,titulo:'🏁 Saída em 5 min',corpo:`Vai fechando — ${plan.alvoSaida}.`});
+    const av3=avisoAntesMin();
+    ev.push({chave:'sai_pre_'+s,min:s-av3,titulo:`🏁 Saída em ${av3} min`,corpo:`Saída exata ${plan.alvoSaida} zera o dia.`});
+    // um segundo toque na reta final, quando o primeiro aviso é folgado
+    if(av3>=10) ev.push({chave:'sai_pre5_'+s,min:s-5,titulo:'🏁 Saída em 5 min',corpo:`Vai fechando — ${plan.alvoSaida}.`});
     ev.push({chave:'sai_'+s,min:s,titulo:'🏁 SAIA AGORA',corpo:`${plan.alvoSaida} — cada minuto a mais vira hora extra.`,nivel:'alarme'});
     for(let k=5;k<=30;k+=5)
       ev.push({chave:'extra_'+s+'_'+k,min:s+k,titulo:'⚠️ Hora extra acumulando',corpo:`Já passaram ${k}min do fechamento. Registre a saída!`,nivel:'alarme'});
@@ -770,14 +777,17 @@ function agendaFutura(dias=10){
     const iso=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
     const p=planejarDia({},cfgDoDia(iso));                      // dia limpo: plano padrão
     const meia=dt.getTime();
+    const av=avisoAntesMin();
     [['ent','🏢 Hora de entrar',p.plano.entrada],
      ['alm','🍽️ Hora do almoço',p.plano.saidaAlmoco],
      ['volta','💼 Hora de voltar',p.plano.voltaAlmoco],
      ['sai','🏁 SAIA AGORA',p.alvoSaida]].forEach(([k,titulo,hora])=>{
       const m=toMin(hora||''); if(m==null) return;
-      out.push({ ts:meia+m*60000, chave:iso+'|'+k, titulo,
-        corpo:'Previsto pelo seu padrão — abra o app pra conferir com as batidas do dia.',
-        nivel:'alarme' });
+      const corpo='Previsto pelo seu padrão — abra o app pra conferir com as batidas do dia.';
+      out.push({ ts:meia+m*60000, chave:iso+'|'+k, titulo, corpo, nivel:'alarme' });
+      // o mesmo adiantamento configurado vale pros dias futuros
+      if(av>0) out.push({ ts:meia+(m-av)*60000, chave:iso+'|'+k+'_pre',
+        titulo:titulo.replace(/^(\S+)\s.*/,'$1')+` em ${av} min`, corpo, nivel:'aviso' });
     });
   }
   return out;
@@ -1440,7 +1450,12 @@ function viewCfg(){
       <div class="toggle ${g.cfg.alarmes?'on':''}" id="c_alarmes"></div></div>
     <div class="switchRow"><div class="tx"><b>Alarme de verdade</b><small>sirene em loop + vibração + tela cheia até você desligar (nos eventos na hora H)</small></div>
       <div class="toggle ${g.cfg.modoAlarme?'on':''}" id="c_modoAlarme"></div></div>
-    <div class="field" style="margin-top:10px"><label>Atualizar do Secullum a cada (min)</label><input id="c_poll" value="${g.cfg.pollMin}" inputmode="numeric"></div>
+    <div class="row2" style="margin-top:10px">
+      <div class="field" style="margin:0"><label>Avisar quantos min antes</label>
+        <input id="c_aviso" value="${g.cfg.avisoAntes}" inputmode="numeric"></div>
+      <div class="field" style="margin:0"><label>Atualizar do Secullum a cada (min)</label>
+        <input id="c_poll" value="${g.cfg.pollMin}" inputmode="numeric"></div>
+    </div>
     ${temPonteNativa()?`
     ${diagAlarmeNativo()}
     <div class="row2" style="margin-top:8px">
@@ -1497,6 +1512,7 @@ function salvarCfg(){
   S.cfg.alarmes=$('#c_alarmes').classList.contains('on');
   S.cfg.modoAlarme=$('#c_modoAlarme').classList.contains('on');
   S.cfg.pollMin=Math.max(1,parseInt(v('c_poll'))||3);
+  S.cfg.avisoAntes=Math.min(60,Math.max(0,parseInt(v('c_aviso'))??10));
   S.gateway=v('c_gw'); S.push=v('c_push');
   save(); toast('✓ Ajustes salvos'); go('hoje'); sincronizar();
 }
