@@ -94,5 +94,22 @@ gradle assembleDebug
 
 ## Assinatura
 
-O `release` usa a chave de debug de propósito — a distribuição é por APK direto.
-Se um dia for para a Play Store, isso precisa virar uma chave de verdade.
+O APK é assinado com uma **chave própria e fixa**, e isso não é detalhe: sem
+ela, o runner do CI gera um `debug.keystore` novo a cada build, a assinatura
+muda, e o Android recusa a atualização por conflito. Nenhuma atualização
+instalaria por cima — foi exatamente o que aconteceu entre os APKs 14 e 16.
+
+A chave vai cifrada no repositório (`app/pontoimp.jks.enc`, AES-256 com PBKDF2)
+e o workflow a decifra com o secret `ANDROID_KEYSTORE_SENHA`. O blob cifrado ser
+público não é problema: sem a senha ele não abre, e a senha nunca entra aqui.
+
+Sem o secret configurado o build continua passando, mas emite um aviso: o APK
+sai com assinatura instável e não atualiza por cima do anterior.
+
+Para conferir se dois APKs atualizam um sobre o outro:
+
+```bash
+unzip -p app.apk META-INF/CERT.RSA | sha256sum
+```
+
+Os dois têm que dar o mesmo hash.
