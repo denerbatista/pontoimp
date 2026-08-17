@@ -51,7 +51,7 @@ const server = http.createServer((req,res)=>{
     return;
   }
   if(p==='/gwraw/me/inconsistencia' && req.method==='POST'){ res.statusCode=404; res.end('{}'); return; }
-  if(p==='/gwraw/me/ponto' && req.method==='POST'){ res.statusCode=404; res.end('{}'); return; }
+  if(p==='/gwraw/me/solicitacao' && req.method==='POST'){ res.statusCode=404; res.end('{}'); return; }
   if(p==='/gwraw/me'){ res.setHeader('Content-Type','application/json');
     res.end(JSON.stringify({nome:'D',empresa:'I',podeIncluirPontoManual:true})); return; }
   if(p.startsWith('/gwraw/me/espelho')){ res.setHeader('Content-Type','application/json');
@@ -60,8 +60,14 @@ const server = http.createServer((req,res)=>{
   if(p.startsWith('/gwman/me/inconsistencias')){ res.setHeader('Content-Type','application/json');
     res.end(JSON.stringify([{ id:77, data:'2026-08-10T00:00:00', tipo:'Falta de marcação',
       descricao:'Saída não registrada', status:0, campoInterno:'preservar' }])); return; }
+  if(p==='/gwman/me/solicitacao' && req.method==='POST'){
+    let b=''; req.on('data',d=>b+=d);
+    req.on('end',()=>{ try{ ultimoPonto=JSON.parse(b); }catch(e){ ultimoPonto={naoEhJson:b}; }
+      res.setHeader('Content-Type','application/json'); res.end('{"ok":true}'); });
+    return;
+  }
   if(p==='/gwman/me'){ res.setHeader('Content-Type','application/json');
-    res.end(JSON.stringify({nome:'Dener Batista',empresa:'Impacta',podeIncluirPontoManual:true})); return; }
+    res.end(JSON.stringify({id:144,nome:'Dener Batista',empresa:'Impacta',podeIncluirPontoManual:true})); return; }
   if(p==='/gw/me'){ res.setHeader('Content-Type','application/json');
     res.end(JSON.stringify({nome:'Dener Batista',empresa:'Impacta',podeIncluirPontoManual:false})); return; }
   if(p.startsWith('/gw/me/espelho')){ res.setHeader('Content-Type','application/json'); res.end(JSON.stringify(espelhoFake())); return; }
@@ -398,29 +404,34 @@ const server = http.createServer((req,res)=>{
       await page.click('.tl .incBtn');
       await page.waitForTimeout(250);
       check('sheet de inclusão abre', await page.locator('#sheetInc').isVisible());
-      check('horário já vem com o que o motor planejou',
-        (await page.locator('#incHora').inputValue())==='08:00');
-      check('justificativas vêm do espelho',
-        (await page.locator('#incJust option').count())===3);
+      check('mostra os cinco pares de entrada e saída',
+        (await page.locator('#incPares .parPonto').count())===5);
+      await page.click('button:has-text("Preencher o que falta")');
+      await page.waitForTimeout(200);
+      check('o motor preenche o que falta',
+        (await page.locator('#e1').inputValue())==='08:00');
       check('prévia diz o efeito no saldo',
         /zera|extra|desconto|saída/i.test(await page.textContent('#incPrevia')));
 
-      await page.fill('#incHora','08:07');
-      await page.waitForTimeout(150);
-      await page.selectOption('#incJust','Esquecimento');
+      await page.click('#incBtn');
+      await page.waitForTimeout(200);
+      check('exige observação, que é o que o gestor lê',
+        /Escreva uma observação/.test(await page.textContent('#toast')));
+
+      await page.fill('#incObs','Retorno sem registro');
       await page.click('#incBtn');
       await page.waitForTimeout(700);
 
       const env = ultimoPonto;
-      check('enviou o POST de inclusão', !!env);
-      // um Z aqui viraria hora deslocada no Secullum — é o erro mais fácil de não notar
-      check('dataHora vai em hora local, sem sufixo de UTC',
-        !!env && /^\d{4}-\d{2}-\d{2}T08:07:00$/.test(env.dataHora));
-      check('manda a justificativa escolhida', !!env && env.justificativa==='Esquecimento');
-      check('marca como inclusão via web', !!env && env.viaCentralWeb===true && env.marcacaoOffline===false);
-      check('não inventa geolocalização', !!env
-        && env.latitude===null && env.longitude===null && env.foraDoPerimetro===false);
-      check('sheet fecha depois de registrar', await page.locator('#sheetInc').isHidden());
+      check('enviou a solicitação de ajuste', !!env);
+      check('vai como ajuste de ponto (tipo 0)', !!env && env.tipo===0);
+      check('manda o dia inteiro em pares entrada/saida', !!env
+        && 'entrada1' in env && 'saida5' in env);
+      check('data do dia, à meia-noite e sem UTC',
+        !!env && /^\d{4}-\d{2}-\d{2}T00:00:00$/.test(env.data));
+      check('leva o funcionarioId, que o Secullum exige', !!env && env.funcionarioId===144);
+      check('observação vai no corpo', !!env && env.observacoes==='Retorno sem registro');
+      check('sheet fecha depois de enviar', await page.locator('#sheetInc').isHidden());
 
       // corrigir um dia passado: é onde a batida esquecida costuma ser notada
       // view direto, sem go(): go('hist') recarrega do gateway e apaga este fixture
@@ -437,20 +448,23 @@ const server = http.createServer((req,res)=>{
       await page.waitForTimeout(300);
       check('a sheet abre na data daquele dia, não na de hoje',
         /12\/08\/2026/.test(await page.textContent('#incTitulo')));
-      check('propõe a primeira batida que falta naquele dia',
-        (await page.locator('#incCampo').inputValue())==='voltaAlmoco');
-      check('as já registradas aparecem bloqueadas',
-        (await page.locator('#incCampo option[disabled]').count())===2);
+      check('as batidas que existem já vêm preenchidas',
+        (await page.locator('#e1').inputValue())==='08:00'
+        && (await page.locator('#s1').inputValue())==='12:00');
+      check('as que faltam começam vazias, sem inventar',
+        (await page.locator('#e2').inputValue())==='');
 
-      await page.selectOption('#incCampo','saida');
+      await page.click('button:has-text("Preencher o que falta")');
       await page.waitForTimeout(200);
-      check('trocar a batida recalcula o horário sugerido',
-        EH_HORA.test(await page.locator('#incHora').inputValue()));
+      check('o motor preenche só os vazios, sem mexer no que existe',
+        (await page.locator('#e1').inputValue())==='08:00'
+        && EH_HORA.test(await page.locator('#e2').inputValue()));
 
+      await page.fill('#incObs','Retorno sem registro');
       await page.click('#incBtn');
       await page.waitForTimeout(600);
       check('o POST vai com a data do dia corrigido',
-        !!ultimoPonto && /^2026-08-12T/.test(ultimoPonto.dataHora));
+        !!ultimoPonto && /^2026-08-12T00:00:00$/.test(ultimoPonto.data));
       // pendência do Secullum casada com a linha do dia: justificar sem sair do histórico
       await page.evaluate(()=>{
         S.hist={ts:Date.now(),dias:[{iso:'2026-08-10',data:'10/08',dia:'Seg',fds:false,saldoStr:'',bat:['08:00','12:00','13:00','18:00']}]};
@@ -554,10 +568,12 @@ const server = http.createServer((req,res)=>{
     await page.waitForTimeout(200);
     await page.click('.tl .incBtn');
     await page.waitForTimeout(250);
+    await page.click('button:has-text("Preencher o que falta")');
+    await page.fill('#incObs','teste');
     await page.click('#incBtn');
-    await page.waitForTimeout(500);
-    check('incluir batida sem a rota aponta pro gateway',
-      /gateway ainda não tem a rota \/me\/ponto/i.test(await page.textContent('#toast')));
+    await page.waitForTimeout(600);
+    check('ajuste sem a rota aponta pro gateway',
+      /gateway ainda não tem a rota \/me\/solicitacao/i.test(await page.textContent('#toast')));
     check('sem erros de JS no fallback', errs.length===0 || (console.log('   errs:',errs), false));
     await page.close();
   }
