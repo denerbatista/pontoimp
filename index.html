@@ -729,6 +729,7 @@ function diagAlarmeNativo(){
     ${linha(sobre,'Abrir sobre outras telas',"AndroidAlarme.pedirSobreporTelas()",'permitir')}
     <div class="detLinha"><span>Alarmes marcados pra hoje</span><b style="color:${n?'var(--ok)':'var(--warn)'}">${n===null?'—':n}</b></div>
     ${(!exato)?'<p class="muted" style="font-size:12px;margin:8px 0 0">Sem o alarme exato o Android não marca nada, e o aviso só aparece com o app aberto.</p>':''}
+    ${(!sobre)?'<p class="muted" style="font-size:12px;margin:8px 0 0">Com o celular desbloqueado o Android mostra só um aviso no topo — é ele que impede app de roubar a tela alheia. Liberando “abrir sobre outras telas”, o alarme sobe em tela cheia mesmo assim.</p>':''}
   </div>`;
 }
 
