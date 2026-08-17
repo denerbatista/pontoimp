@@ -112,6 +112,9 @@
   .detDia{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
   .detLinha{display:flex;justify-content:space-between;gap:10px;padding:4px 0;font-size:13px;color:var(--mut)}
   .detLinha b{color:var(--txt);font-variant-numeric:tabular-nums}
+  /* pares entrada/saída do ajuste de ponto, lado a lado como na Central */
+  .parPonto{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+  .parPonto label{font-size:11px}
   .tl:hover{background:var(--bg2)}
   .tl .dot{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:15px;
     background:var(--card);border:1px solid var(--line)}
@@ -227,16 +230,14 @@
 <!-- ===================== SHEET DO PONTO MANUAL ===================== -->
 <div class="sheetBg hidden" id="sheetInc">
   <div class="sheet">
-    <h3 style="margin:0 0 6px">Incluir batida — <span id="incTitulo"></span></h3>
-    <p class="muted" style="margin:0 0 16px;font-size:13px">Vai direto pro seu cartão de ponto no Secullum.</p>
-    <div class="field"><label>Qual batida</label>
-      <select id="incCampo" onchange="trocarCampoInclusao()"></select></div>
-    <div class="field"><label>Horário</label>
-      <input id="incHora" type="time" oninput="atualizarPreviaInclusao()"></div>
-    <div class="field"><label>Justificativa</label>
-      <select id="incJust"></select></div>
+    <h3 style="margin:0 0 6px">Ajustar ponto — <span id="incTitulo"></span></h3>
+    <p class="muted" style="margin:0 0 14px;font-size:13px">Vai como solicitação, pro seu gestor aprovar.</p>
+    <div id="incPares" style="max-height:44vh;overflow:auto"></div>
+    <button class="btn ghost sm" style="width:100%;margin:10px 0" onclick="sugerirHorarios()">✨ Preencher o que falta pelo motor</button>
+    <div class="field"><label>Observação</label>
+      <input id="incObs" placeholder="ex.: retorno sem registro"></div>
     <p class="muted" id="incPrevia" style="font-size:12px;margin:0 0 16px"></p>
-    <button class="btn" id="incBtn" onclick="confirmarInclusao()">Confirmar e registrar</button>
+    <button class="btn" id="incBtn" onclick="confirmarInclusao()">Enviar ajuste</button>
     <button class="btn ghost sm" style="margin-top:16px;width:100%;border:0;color:var(--mut)" onclick="fecharIncluir()">cancelar</button>
   </div>
 </div>
@@ -527,6 +528,7 @@ async function carregarPerfil(){
     diagManual = v===true ? 'liberada — o ＋ aparece nas batidas que faltam, na aba Hoje.'
       : v===false ? 'desabilitada pela sua empresa no Secullum.'
       : 'o gateway respondeu, mas sem o campo podeIncluirPontoManual.';
+    if(d.id) S.func.id=d.id;   // o ajuste de ponto exige funcionarioId no corpo
     if(d.nome) S.func.nome=d.nome;
     if(d.empresa) S.func.empresa=d.empresa;
     save(); render();
@@ -976,79 +978,105 @@ function batidasDoDia(iso){
 }
 const dataBR=(iso)=>iso.split('-').reverse().join('/');
 
+/* O Secullum ajusta o dia inteiro numa solicitação só: entrada1..5 e saida1..5,
+   mais uma observação. Formato confirmado por captura da Central. */
+const PARES=[1,2,3,4,5];
 function abrirIncluir(campo,dataIso){
-  if(!S.func.podeManual) return toast('Inclusão manual desabilitada pela empresa.');
   const iso=dataIso||hojeStr();
   const bat=batidasDoDia(iso);
-  // sem campo escolhido, propõe a primeira que falta naquele dia
-  const alvo=campo||ORDER.find(k=>!bat[k])||'entrada';
   const plan=planejarDia(bat,cfgDoDia(iso));
   incluindo={ dataIso:iso };
-  $('#incTitulo').textContent=`${LABELS[alvo]} · ${dataBR(iso)}`;
-  const selC=$('#incCampo');
-  selC.innerHTML=ORDER.map(k=>`<option value="${k}"${k===alvo?' selected':''}${bat[k]?' disabled':''}>${LABELS[k]}${bat[k]?' — já registrada ('+bat[k]+')':''}</option>`).join('');
-  $('#incHora').value=plan.plano[alvo]||nowHM();
-  const sel=$('#incJust');
-  sel.innerHTML='<option value="">sem justificativa</option>'
-    +S.justificativas.map(j=>`<option value="${j.txt.replace(/"/g,'&quot;')}">${j.txt}</option>`).join('');
-  sel.parentElement.classList.toggle('hidden', S.justificativas.length===0);
+  $('#incTitulo').textContent=dataBR(iso);
+
+  // as quatro batidas do nosso motor viram os dois primeiros pares do Secullum
+  const atual={ entrada1:bat.entrada, saida1:bat.saidaAlmoco,
+                entrada2:bat.voltaAlmoco, saida2:bat.saida };
+  // o que falta vem sugerido pelo motor, que é o horário que zera o dia
+  const sug={ entrada1:plan.plano.entrada, saida1:plan.plano.saidaAlmoco,
+              entrada2:plan.plano.voltaAlmoco, saida2:plan.plano.saida };
+
+  $('#incPares').innerHTML=PARES.map(n=>`
+    <div class="parPonto">
+      <div class="field" style="margin:0"><label>Entrada ${n}</label>
+        <input id="e${n}" type="time" value="${atual['entrada'+n]||''}"
+          data-sug="${sug['entrada'+n]||''}" oninput="atualizarPreviaInclusao()"></div>
+      <div class="field" style="margin:0"><label>Saída ${n}</label>
+        <input id="s${n}" type="time" value="${atual['saida'+n]||''}"
+          data-sug="${sug['saida'+n]||''}" oninput="atualizarPreviaInclusao()"></div>
+    </div>`).join('');
+  $('#incObs').value='';
   atualizarPreviaInclusao();
   $('#sheetInc').classList.remove('hidden');
+}
+
+/** Preenche os vazios com o que o motor planejou — sem sobrescrever o que existe. */
+function sugerirHorarios(){
+  let n=0;
+  PARES.forEach(i=>['e','s'].forEach(p=>{
+    const el=$('#'+p+i);
+    if(el&&!el.value&&el.dataset.sug){ el.value=el.dataset.sug; n++; }
+  }));
+  atualizarPreviaInclusao();
+  toast(n?`${n} horário${n>1?'s':''} preenchido${n>1?'s':''} pelo motor.`:'Nada a sugerir: o dia já está completo.');
+}
+
+function lerPares(){
+  const o={};
+  PARES.forEach(n=>{
+    const e=$('#e'+n)?.value||'', s=$('#s'+n)?.value||'';
+    o['entrada'+n]=EH_HORA.test(e)?e:null;
+    o['saida'+n]=EH_HORA.test(s)?s:null;
+  });
+  return o;
 }
 function fecharIncluir(){ $('#sheetInc').classList.add('hidden'); incluindo=null; }
 
 /* Mostra o que aquele horário faz com o saldo — é a informação que importa
    na hora de decidir, e some se o campo estiver inválido. */
-function trocarCampoInclusao(){
-  if(!incluindo) return;
-  const campo=$('#incCampo').value;
-  const p=planejarDia(batidasDoDia(incluindo.dataIso),cfgDoDia(incluindo.dataIso));
-  $('#incHora').value=p.plano[campo]||nowHM();
-  $('#incTitulo').textContent=`${LABELS[campo]} · ${dataBR(incluindo.dataIso)}`;
-  atualizarPreviaInclusao();
-}
 function atualizarPreviaInclusao(){
   if(!incluindo) return;
-  const hora=$('#incHora').value;
-  const alvo=$('#incPrevia');
-  if(!EH_HORA.test(hora)){ alvo.textContent='Informe um horário válido.'; return; }
-  const simulado={...batidasDoDia(incluindo.dataIso), [$('#incCampo').value]:hora};
-  const p=planejarDia(simulado,cfgDoDia(incluindo.dataIso));
-  const s=p.saldoRealizadoMin;
-  alvo.textContent = p.estagio===4
-    ? (s===0?'Com esse horário o dia fecha zerado.'
-      : s>0?`Com esse horário o dia fecha com ${s}min de extra.`
-           : `Com esse horário o dia fecha com ${-s}min de desconto.`)
-    : `Com esse horário, a saída que zera o dia passa a ser ${p.alvoSaida}.`;
+  const alvo=$('#incPrevia'); const p=lerPares();
+  // o motor entende os dois primeiros pares; os demais o Secullum conta na boa
+  const sim={ entrada:p.entrada1, saidaAlmoco:p.saida1, voltaAlmoco:p.entrada2, saida:p.saida2 };
+  const plano=planejarDia(sim,cfgDoDia(incluindo.dataIso));
+  const s=plano.saldoRealizadoMin;
+  alvo.textContent = plano.estagio===4
+    ? (s===0?'Assim o dia fecha zerado.'
+      : s>0?`Assim o dia fecha com ${s}min de extra.`
+           : `Assim o dia fecha com ${-s}min de desconto.`)
+    : `Faltam batidas: a saída que zera o dia seria ${plano.alvoSaida}.`;
 }
 
 async function confirmarInclusao(){
   if(!incluindo) return;
-  const hora=$('#incHora').value;
-  if(!EH_HORA.test(hora)) return toast('Informe um horário válido (HH:MM).');
+  const pares=lerPares();
+  if(!Object.values(pares).some(Boolean)) return toast('Preencha ao menos um horário.');
+  const obs=$('#incObs').value.trim();
+  if(!obs) return toast('Escreva uma observação — é o que o gestor lê pra aprovar.');
   const btn=$('#incBtn'); btn.disabled=true; btn.textContent='Enviando…';
   try{
-    // sem sufixo Z de propósito: com UTC o Secullum receberia a hora deslocada
-    // o Secullum posiciona a batida pela hora, não por um campo — daí só dataHora
-    const corpo={ dataHora:`${incluindo.dataIso}T${hora}:00`,
-      justificativa:$('#incJust').value||null,
-      latitude:null, longitude:null, precisao:null, endereco:null, foto:null,
-      marcacaoOffline:false, viaCentralWeb:true, atividadeId:null, foraDoPerimetro:false };
-    let r=await apiPost('/me/ponto',corpo);
-    if(r.status===401&&await reloginSilencioso()) r=await apiPost('/me/ponto',corpo);
+    // formato confirmado por captura da Central do Funcionário: tipo 0 = ajuste
+    // de ponto, e o dia inteiro vai numa solicitação só
+    const corpo={ data:`${incluindo.dataIso}T00:00:00`, funcionarioId:S.func.id||null,
+      solicitanteId:null, justificativaId:null, ...pares,
+      filtro1Id:null, filtro2Id:null, periculosidade:null, versao:null,
+      tipo:0, observacoes:obs, dados:null, foto:null, temFoto:false,
+      registroPendente:false, existePeriodoEncerrado:false, tipoAusencia:0,
+      dataSolicitacao:null, feriasVendaDias:null };
+    let r=await apiPost('/me/solicitacao',corpo);
+    if(r.status===401&&await reloginSilencioso()) r=await apiPost('/me/solicitacao',corpo);
     if(!r.ok){
-      // 404 é o gateway sem a rota, não o Secullum recusando a batida
-      if(r.status===404) return toast('O gateway ainda não tem a rota /me/ponto. Falta aplicar as rotas no worker.');
+      if(r.status===404) return toast('O gateway ainda não tem a rota /me/solicitacao. Falta aplicar as rotas no worker.');
       let msg='';
       try{ const j=await r.json(); msg=j.erro||j.mensagem||''; }catch(e){}
       toast(msg?('Recusado: '+msg):('O Secullum recusou ('+r.status+').'));
       return;
     }
     fecharIncluir();
-    toast('Batida enviada — confirmando no Secullum…');
+    toast('Ajuste enviado — vai pra aprovação do gestor.');
     await sincronizar(false); // a fonte da verdade continua sendo o espelho
   }catch(e){ toast('Não conectou pra enviar: '+(e.message||e)); }
-  finally{ btn.disabled=false; btn.textContent='Confirmar e registrar'; }
+  finally{ btn.disabled=false; btn.textContent='Enviar ajuste'; }
 }
 
 /* ---------- pergunta do almoço ---------- */

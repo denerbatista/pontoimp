@@ -9,6 +9,23 @@
    existem no arquivo. Nada mais precisa mudar.
    --------------------------------------------------------------------------- */
 
+      // Ajuste de ponto: manda o dia inteiro (entrada1..5 / saida1..5) numa
+      // solicitação só, que vai pra aprovação do gestor. É o que a tela
+      // "Ajustar Ponto" do app oficial faz — confirmado por captura HAR.
+      if (u.pathname === "/me/solicitacao" && req.method === "POST") {
+        const corpo = await req.json().catch(() => null);
+        if (!corpo) return json(400, { erro: "corpo inválido" });
+        return passthru(await secullum("/Solicitacoes", { method: "POST", body: corpo, sess }));
+      }
+
+      // Lista as solicitações do período, com status.
+      if (u.pathname === "/me/solicitacoes") {
+        const i = u.searchParams.get("inicio"), f = u.searchParams.get("fim");
+        const st = u.searchParams.get("status") || "0";
+        if (!i || !f) return json(400, { erro: "informe inicio e fim" });
+        return passthru(await secullum(`/Solicitacoes/${i}/${f}/${st}/0/0`, { sess }));
+      }
+
       // Inclui uma batida que faltou. É o que o botão ＋ do app chama.
       if (u.pathname === "/me/ponto" && req.method === "POST") {
         const corpo = await req.json().catch(() => null);
