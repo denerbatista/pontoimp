@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- mesma diagonal do .logo do app: --pri para --pri2 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:startColor="#6C8CFF"
+        android:endColor="#8A6CFF"
+        android:angle="315" />
+</shape>

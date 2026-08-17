@@ -113,6 +113,42 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        /* ---- atualização ---- */
+
+        /** Devolve a versão nova, ou "" se já está atualizado. Faz rede: assíncrono. */
+        @JavascriptInterface
+        fun verificarAtualizacao() {
+            Thread {
+                val r = Atualizador.consultar()
+                val atual = Atualizador.versaoInstalada(applicationContext)
+                val nova = if (r != null && r.versao > atual) r.versao else 0
+                runOnUiThread {
+                    b.web.evaluateJavascript("window.aoVerificarAtualizacao&&aoVerificarAtualizacao($nova,$atual)", null)
+                }
+            }.start()
+        }
+
+        /** Baixa e, ao terminar, abre a tela de instalação do Android. */
+        @JavascriptInterface
+        fun baixarAtualizacao() {
+            Thread {
+                val r = Atualizador.consultar()
+                if (r == null) { avisar("Não consegui consultar a atualização."); return@Thread }
+                val id = Atualizador.baixar(applicationContext, r)
+                avisar("Baixando o APK ${r.versao}…")
+                // espera o download; o DownloadManager não avisa direto a Activity
+                repeat(180) {
+                    Thread.sleep(1000)
+                    if (Atualizador.instalar(applicationContext, id)) return@Thread
+                }
+                avisar("O download demorou demais. Tente pela release no GitHub.")
+            }.start()
+        }
+
+        private fun avisar(txt: String) = runOnUiThread {
+            b.web.evaluateJavascript("window.toast&&toast(${org.json.JSONObject.quote(txt)})", null)
+        }
+
         /** Dispara a tela de alarme agora, pra você conferir sem esperar o horário. */
         @JavascriptInterface
         fun testarAlarme() {
