@@ -8,8 +8,10 @@ import android.content.Intent
 class ReceptorBoot : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
         when (intent.action) {
-            Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED ->
+            Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> {
                 AgendadorAlarmes.rearmarDoDisco(ctx)
+                if (ServicoSentinela.ligado(ctx)) ServicoSentinela.ligar(ctx)
+            }
         }
     }
 }

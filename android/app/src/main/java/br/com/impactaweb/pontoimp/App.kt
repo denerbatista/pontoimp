@@ -30,12 +30,20 @@ class App : Application() {
         val aviso = NotificationChannel(CANAL_AVISO, "Avisos", NotificationManager.IMPORTANCE_DEFAULT).apply {
             description = "Lembretes que não precisam acordar você"
         }
+        // canal do serviço em importância mínima: a notificação permanente é
+        // exigência do Android, não algo que deva chamar atenção
+        val servico = NotificationChannel(CANAL_SERVICO, "Sentinela", NotificationManager.IMPORTANCE_MIN).apply {
+            description = "Aviso permanente de que o PontoImp está vigiando os horários"
+            setShowBadge(false)
+        }
         nm.createNotificationChannel(alarme)
         nm.createNotificationChannel(aviso)
+        nm.createNotificationChannel(servico)
     }
 
     companion object {
         const val CANAL_ALARME = "pontoimp.alarme"
         const val CANAL_AVISO = "pontoimp.aviso"
+        const val CANAL_SERVICO = "pontoimp.servico"
     }
 }

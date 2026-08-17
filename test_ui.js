@@ -613,8 +613,8 @@ const server = http.createServer((req,res)=>{
     await page.addInitScript(({port})=>{
       // a ponte que o WebView do app injeta
       window.AndroidAlarme = { agendar:(j)=>window.registrarAgenda(j), disponivel:()=>true,
-        podeAlarmeExato:()=>false, podeSobreporTelas:()=>true, podeIgnorarBateria:()=>false, alarmesArmados:()=>0,
-        pedirAlarmeExato:()=>{}, pedirSobreporTelas:()=>{}, pedirIgnorarBateria:()=>{}, testarAlarme:()=>{},
+        podeAlarmeExato:()=>false, podeSobreporTelas:()=>true, podeIgnorarBateria:()=>false, sentinelaLigada:()=>false, alarmesArmados:()=>0,
+        pedirAlarmeExato:()=>{}, pedirSobreporTelas:()=>{}, pedirIgnorarBateria:()=>{}, ligarSentinela:(v)=>{window.sentinelaPedida=v;}, testarAlarme:()=>{},
         // o lado nativo responde por callback, como o WebView faz de verdade
         verificarAtualizacao:()=>setTimeout(()=>window.aoVerificarAtualizacao(14,11),30),
         baixarAtualizacao:()=>window.baixouChamado&&window.baixouChamado() };
@@ -674,6 +674,11 @@ const server = http.createServer((req,res)=>{
       /Ignorar economia de bateria/.test(cfg));
     check('explica que a suspensão da Samsung mata o alarme',
       /suspensão de apps da Samsung/.test(cfg));
+    check('oferece a sentinela como garantia', /Sentinela \(vigia sozinho\)/.test(cfg));
+    check('deixa claro o custo da sentinela', /aviso fixo na barra/.test(cfg));
+    check('o botão da sentinela liga de verdade', await page.evaluate(()=>{
+      alternarSentinela(); return window.sentinelaPedida===true;
+    }));
 
     // atualização do APK: o app confere sozinho ao abrir e oferece baixar
     check('detecta versão nova ao abrir', await page.evaluate(()=>versaoNova===14));

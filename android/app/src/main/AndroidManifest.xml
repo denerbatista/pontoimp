@@ -19,6 +19,10 @@
     <!-- a suspensão de apps da Samsung é mais agressiva que o Doze padrão e mata
          o alarme mesmo agendado com setAlarmClock; isto pede a isenção -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- sentinela: mantém o processo vivo pra conferir os horários por conta
+         própria, quando o AlarmManager não basta -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission
         android:name="android.permission.SCHEDULE_EXACT_ALARM"
         android:maxSdkVersion="32" />
@@ -64,6 +68,15 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/arquivos" />
         </provider>
+
+        <service
+            android:name=".ServicoSentinela"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Vigia os horários do ponto para tocar o alarme mesmo com o app fechado" />
+        </service>
 
         <receiver
             android:name=".ReceptorAlarme"
