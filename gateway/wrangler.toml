@@ -11,7 +11,7 @@ crons = ["* * * * *"]
 # e cole o id devolvido aqui.
 [[kv_namespaces]]
 binding = "PUSH"
-id = "COLE_O_ID_DO_KV_AQUI"
+id = "72eba59795c64fae9f4ab54d56f4c0f9"
 
 [vars]
 VAPID_ASSUNTO = "mailto:dener@impactaweb.com.br"

@@ -1,7 +1,7 @@
 /* PontoImp — service worker: shell offline + notificações persistentes */
-const CACHE = 'pontoimp-v8';
+const CACHE = 'pontoimp-v10';
 const CFG = 'pontoimp-cfg'; // sobrevive à troca de versão: guarda a URL do serviço de push
-const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
+const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192-v2.png', './icon-512-v2.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -38,8 +38,8 @@ self.addEventListener('push', (e) => {
   const alarme = d.nivel === 'alarme';
   e.waitUntil(self.registration.showNotification(d.titulo || 'PontoImp', {
     body: d.corpo || '',
-    icon: './icon-192.png',
-    badge: './icon-192.png',
+    icon: './icon-192-v2.png',
+    badge: './icon-192-v2.png',
     tag: d.chave || d.titulo,
     renotify: true,
     requireInteraction: alarme,
