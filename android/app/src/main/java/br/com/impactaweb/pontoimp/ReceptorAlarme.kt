@@ -24,6 +24,10 @@ class ReceptorAlarme : BroadcastReceiver() {
         val chave = intent.getStringExtra("chave") ?: titulo
         val ehAlarme = intent.getBooleanExtra("alarme", false)
 
+        // os dois caminhos (AlarmManager e sentinela) chegam aqui: marcar evita dobra
+        if (Agenda.jaDisparou(ctx, chave)) return
+        Agenda.marcarDisparado(ctx, chave)
+
         val nm = ctx.getSystemService(NotificationManager::class.java)
 
         if (!ehAlarme) {

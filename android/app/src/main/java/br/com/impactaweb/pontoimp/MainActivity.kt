@@ -170,6 +170,18 @@ class MainActivity : AppCompatActivity() {
             b.web.evaluateJavascript("window.toast&&toast(${org.json.JSONObject.quote(txt)})", null)
         }
 
+        /* ---- sentinela: rede de segurança contra o app ser suspenso ---- */
+        @JavascriptInterface
+        fun sentinelaLigada(): Boolean = ServicoSentinela.ligado(applicationContext)
+
+        @JavascriptInterface
+        fun ligarSentinela(ligar: Boolean) {
+            runOnUiThread {
+                if (ligar) ServicoSentinela.ligar(applicationContext)
+                else ServicoSentinela.desligar(applicationContext)
+            }
+        }
+
         /** Dispara a tela de alarme agora, pra você conferir sem esperar o horário. */
         @JavascriptInterface
         fun testarAlarme() {

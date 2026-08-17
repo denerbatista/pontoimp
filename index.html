@@ -698,6 +698,17 @@ function armarAlarmesNativos(){
 }
 // versões antigas do APK não têm estes métodos: perguntar sem quebrar
 const pn=(m,padrao)=>{ try{ return (temPonteNativa()&&typeof AndroidAlarme[m]==='function')?AndroidAlarme[m]():padrao; }catch(e){ return padrao; } };
+/* Rede de segurança: mantém o processo vivo conferindo os horários, pra quando
+   o fabricante suspende o app e derruba o alarme mesmo agendado. Custa uma
+   notificação permanente — por isso é opção, não padrão. */
+function alternarSentinela(){
+  if(typeof AndroidAlarme?.ligarSentinela!=='function') return toast('Atualize o APK pra usar a sentinela.');
+  const novo=!pn('sentinelaLigada',false);
+  AndroidAlarme.ligarSentinela(novo);
+  toast(novo?'Sentinela ligada — fica um aviso fixo na barra, e é ele que garante o alarme.'
+            :'Sentinela desligada.');
+  setTimeout(render,400);
+}
 function testarAlarmeNativo(){
   if(typeof AndroidAlarme?.testarAlarme!=='function') return toast('Atualize o APK pra usar o teste de alarme.');
   AndroidAlarme.testarAlarme();
@@ -723,7 +734,8 @@ function baixarAtualizacao(){ if(typeof AndroidAlarme?.baixarAtualizacao==='func
 
 function diagAlarmeNativo(){
   const exato=pn('podeAlarmeExato',null), sobre=pn('podeSobreporTelas',null),
-        bateria=pn('podeIgnorarBateria',null), n=pn('alarmesArmados',null);
+        bateria=pn('podeIgnorarBateria',null), sent=pn('sentinelaLigada',null),
+        n=pn('alarmesArmados',null);
   if(exato===null) return `<p class="muted" style="font-size:12px;margin:0">APK antigo: atualize pra ver o estado dos alarmes.</p>`;
   const linha=(ok,txt,acao,rot)=>`<div class="detLinha"><span>${txt}</span>${ok
     ? '<b style="color:var(--ok)">liberado</b>'
@@ -732,7 +744,11 @@ function diagAlarmeNativo(){
     ${linha(exato,'Alarme na hora exata',"AndroidAlarme.pedirAlarmeExato()",'permitir')}
     ${linha(sobre,'Abrir sobre outras telas',"AndroidAlarme.pedirSobreporTelas()",'permitir')}
     ${bateria===null?'':linha(bateria,'Ignorar economia de bateria',"AndroidAlarme.pedirIgnorarBateria()",'permitir')}
+    ${sent===null?'':`<div class="detLinha"><span>Sentinela (vigia sozinho)</span>
+      <button class="btn ghost sm" style="width:auto;padding:0 10px;height:28px;color:${sent?'var(--ok)':'var(--warn)'}"
+        onclick="alternarSentinela()">${sent?'ligada — desligar':'desligada — ligar'}</button></div>`}
     <div class="detLinha"><span>Alarmes marcados no sistema</span><b style="color:${n?'var(--ok)':'var(--warn)'}">${n===null?'—':n}</b></div>
+    ${(sent===false)?'<p class="muted" style="font-size:12px;margin:8px 0 0">A sentinela é a garantia: com ela ligada o app fica vigiando os horários por conta própria, e só para se você desligar. O custo é um aviso fixo na barra de notificações.</p>':''}
     <p class="muted" style="font-size:12px;margin:8px 0 0">Inclui os próximos dias úteis no seu horário padrão, então um dia sem abrir o app não fica sem alarme. Eles não precisam do app rodando: quem acorda o aparelho é o despertador do sistema.</p>
     ${(!exato)?'<p class="muted" style="font-size:12px;margin:8px 0 0">Sem o alarme exato o Android não marca nada, e o aviso só aparece com o app aberto.</p>':''}
     ${(!sobre)?'<p class="muted" style="font-size:12px;margin:8px 0 0">Com o celular desbloqueado o Android mostra só um aviso no topo — é ele que impede app de roubar a tela alheia. Liberando “abrir sobre outras telas”, o alarme sobe em tela cheia mesmo assim.</p>':''}
