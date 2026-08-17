@@ -748,7 +748,7 @@ function diagAlarmeNativo(){
       <button class="btn ghost sm" style="width:auto;padding:0 10px;height:28px;color:${sent?'var(--ok)':'var(--warn)'}"
         onclick="alternarSentinela()">${sent?'ligada — desligar':'desligada — ligar'}</button></div>`}
     <div class="detLinha"><span>Alarmes marcados no sistema</span><b style="color:${n?'var(--ok)':'var(--warn)'}">${n===null?'—':n}</b></div>
-    ${(sent===false)?'<p class="muted" style="font-size:12px;margin:8px 0 0">A sentinela é a garantia: com ela ligada o app fica vigiando os horários por conta própria, e só para se você desligar. O custo é um aviso fixo na barra de notificações.</p>':''}
+    ${(sent===false)?'<p class="muted" style="font-size:12px;margin:8px 0 0">A sentinela é a garantia: vigia os horários por conta própria e, de 20 em 20 minutos, busca o Secullum e recalcula — então bater atrasado desloca o alarme de saída mesmo com o app fechado. Só para se você desligar. O custo é um aviso fixo na barra.</p>':''}
     <p class="muted" style="font-size:12px;margin:8px 0 0">Inclui os próximos dias úteis no seu horário padrão, então um dia sem abrir o app não fica sem alarme. Eles não precisam do app rodando: quem acorda o aparelho é o despertador do sistema.</p>
     ${(!exato)?'<p class="muted" style="font-size:12px;margin:8px 0 0">Sem o alarme exato o Android não marca nada, e o aviso só aparece com o app aberto.</p>':''}
     ${(!sobre)?'<p class="muted" style="font-size:12px;margin:8px 0 0">Com o celular desbloqueado o Android mostra só um aviso no topo — é ele que impede app de roubar a tela alheia. Liberando “abrir sobre outras telas”, o alarme sobe em tela cheia mesmo assim.</p>':''}
