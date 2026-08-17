@@ -114,7 +114,7 @@ const server = http.createServer((req,res)=>{
         func:{nome:'Dener Batista',empresa:'Impacta'},
         cfg:{cargaSegQui:492,cargaSex:432,entradaPadrao:'08:00',saidaAlmocoPadrao:'12:00',almocoMin:108,almocoPiso:60,
              compensarAtrasoNoAlmoco:true,adiantamento:'sair_cedo',metaSegQui:'',metaSex:'',toleranciaMin:5,
-             ativo:true,alarmes:true,modoAlarme:true,pollMin:3},
+             ativo:true,alarmes:true,modoAlarme:true,pollMin:3,avisoAntes:10},
         hoje:{data:hoje,entrada:'08:00',saidaAlmoco:null,voltaAlmoco:null,saida:null,almocoPrevisto:null,snoozeAte:null,perguntaFeita:false,metaHoje:''},
         hist:{ts:0,dias:[]}, notificados:{}, ultimaSyncMs:Date.now() };
       localStorage.setItem('pontoimp.v2',JSON.stringify(st));
@@ -306,7 +306,7 @@ const server = http.createServer((req,res)=>{
         func:{nome:'Dener Batista',empresa:'Impacta'},
         cfg:{cargaSegQui:492,cargaSex:432,entradaPadrao:'08:00',saidaAlmocoPadrao:'12:00',almocoMin:108,almocoPiso:60,
              compensarAtrasoNoAlmoco:true,adiantamento:'sair_cedo',metaSegQui:'',metaSex:'17:00',toleranciaMin:5,
-             ativo:true,alarmes:true,modoAlarme:true,pollMin:3},
+             ativo:true,alarmes:true,modoAlarme:true,pollMin:3,avisoAntes:10},
         hoje:{data:hoje,entrada:null,saidaAlmoco:null,voltaAlmoco:null,saida:null,almocoPrevisto:null,snoozeAte:null,perguntaFeita:false,metaHoje:''},
         hist:{ts:0,dias:[]}, notificados:{}, ultimaSyncMs:Date.now() }));
     },{port:PORT});
@@ -366,7 +366,7 @@ const server = http.createServer((req,res)=>{
         func:{nome:'Dener Batista',empresa:'Impacta',podeManual:false},
         cfg:{cargaSegQui:492,cargaSex:432,entradaPadrao:'08:00',saidaAlmocoPadrao:'12:00',almocoMin:108,almocoPiso:60,
              compensarAtrasoNoAlmoco:true,adiantamento:'sair_cedo',metaSegQui:'',metaSex:'',toleranciaMin:5,
-             ativo:true,alarmes:true,modoAlarme:true,pollMin:3},
+             ativo:true,alarmes:true,modoAlarme:true,pollMin:3,avisoAntes:10},
         hoje:{data:hoje,entrada:null,saidaAlmoco:null,voltaAlmoco:null,saida:null,almocoPrevisto:null,snoozeAte:null,perguntaFeita:false,metaHoje:''},
         hist:{ts:0,dias:[]}, justificativas:[], notificados:{}, ultimaSyncMs:Date.now() }));
     },{port:PORT});
@@ -543,7 +543,7 @@ const server = http.createServer((req,res)=>{
         func:{nome:'D',empresa:'I',podeManual:false},
         cfg:{cargaSegQui:492,cargaSex:432,entradaPadrao:'08:00',saidaAlmocoPadrao:'12:00',almocoMin:108,almocoPiso:60,
              compensarAtrasoNoAlmoco:true,adiantamento:'sair_cedo',metaSegQui:'',metaSex:'',toleranciaMin:5,
-             ativo:true,alarmes:true,modoAlarme:true,pollMin:3},
+             ativo:true,alarmes:true,modoAlarme:true,pollMin:3,avisoAntes:10},
         hoje:{data:hoje,entrada:'08:00',saidaAlmoco:null,voltaAlmoco:null,saida:null,almocoPrevisto:null,snoozeAte:null,perguntaFeita:false,metaHoje:''},
         hist:{ts:0,dias:[]}, justificativas:[], notificados:{}, ultimaSyncMs:Date.now() }));
     },{port:PORT});
@@ -588,7 +588,7 @@ const server = http.createServer((req,res)=>{
         func:{nome:'D',empresa:'I',podeManual:false},
         cfg:{cargaSegQui:492,cargaSex:432,entradaPadrao:'08:00',saidaAlmocoPadrao:'12:00',almocoMin:108,almocoPiso:60,
              compensarAtrasoNoAlmoco:true,adiantamento:'sair_cedo',metaSegQui:'',metaSex:'',toleranciaMin:5,
-             ativo:true,alarmes:true,modoAlarme:true,pollMin:3},
+             ativo:true,alarmes:true,modoAlarme:true,pollMin:3,avisoAntes:10},
         hoje:{data:'2026-08-15',entrada:null,saidaAlmoco:null,voltaAlmoco:null,saida:null,almocoPrevisto:null,snoozeAte:null,perguntaFeita:false,metaHoje:''},
         hist:{ts:0,dias:[]}, justificativas:[], notificados:{}, ultimaSyncMs:Date.now() }));
     },{port:PORT});
@@ -624,7 +624,7 @@ const server = http.createServer((req,res)=>{
         func:{nome:'Dener Batista',empresa:'Impacta',podeManual:false},
         cfg:{cargaSegQui:492,cargaSex:432,entradaPadrao:'08:00',saidaAlmocoPadrao:'12:00',almocoMin:108,almocoPiso:60,
              compensarAtrasoNoAlmoco:true,adiantamento:'sair_cedo',metaSegQui:'',metaSex:'',toleranciaMin:5,
-             ativo:true,alarmes:true,modoAlarme:true,pollMin:3},
+             ativo:true,alarmes:true,modoAlarme:true,pollMin:3,avisoAntes:10},
         hoje:{data:hoje,entrada:'08:00',saidaAlmoco:null,voltaAlmoco:null,saida:null,almocoPrevisto:null,snoozeAte:null,perguntaFeita:false,metaHoje:''},
         hist:{ts:0,dias:[]}, justificativas:[], notificados:{}, ultimaSyncMs:Date.now() }));
     },{port:PORT});
@@ -641,7 +641,25 @@ const server = http.createServer((req,res)=>{
       fut.every(e=>{ const d=new Date(e.ts).getDay(); return d>=1&&d<=5; }));
     check('todos os futuros estão à frente de agora',
       await page.evaluate(()=>agendaFutura().every(e=>e.ts>Date.now())));
-    check('quatro alarmes por dia útil', fut.length%4===0);
+    check('oito eventos por dia útil: quatro horários e quatro avisos prévios',
+      fut.length%8===0);
+    check('o aviso prévio sai antes do horário', await page.evaluate(()=>{
+      const a=agendaFutura();
+      const sai=a.find(e=>/\|sai$/.test(e.chave)), pre=a.find(e=>/\|sai_pre$/.test(e.chave));
+      return sai && pre && (sai.ts-pre.ts)===10*60000;
+    }));
+    check('o adiantamento segue o que está configurado', await page.evaluate(()=>{
+      const antes=S.cfg.avisoAntes; S.cfg.avisoAntes=25;
+      const a=agendaFutura();
+      const sai=a.find(e=>/\|sai$/.test(e.chave)), pre=a.find(e=>/\|sai_pre$/.test(e.chave));
+      S.cfg.avisoAntes=antes;
+      return (sai.ts-pre.ts)===25*60000;
+    }));
+    check('zero desliga os avisos prévios', await page.evaluate(()=>{
+      const antes=S.cfg.avisoAntes; S.cfg.avisoAntes=0;
+      const n=agendaFutura().filter(e=>/_pre$/.test(e.chave)).length;
+      S.cfg.avisoAntes=antes; return n===0;
+    }));
     check('chave prefixada pela data de cada dia',
       fut.every(e=>/^\d{4}-\d{2}-\d{2}\|/.test(e.chave)));
     check('avisa que o horário é o padrão, não o real',
