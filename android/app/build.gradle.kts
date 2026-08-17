@@ -11,8 +11,10 @@ android {
         applicationId = "br.com.impactaweb.pontoimp"
         minSdk = 26          // setAlarmClock + canais de notificação
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        // casa com a tag apk-N da release: é assim que o app sabe se está velho.
+        // Fora do CI vira 1, o que só afeta build local.
+        versionCode = (System.getenv("RUN_NUMBER") ?: "1").toInt()
+        versionName = "1.0." + (System.getenv("RUN_NUMBER") ?: "0")
     }
 
     signingConfigs {

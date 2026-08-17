@@ -702,6 +702,22 @@ function testarAlarmeNativo(){
 
 /* Sem permissão de alarme exato o Android não agenda nada — e antes disso o app
    não tinha como te contar. É a causa mais provável de "só toca com o app aberto". */
+/* ---------- atualização do APK ---------- */
+let versaoNova=0, checagemSilenciosa=true;
+function aoVerificarAtualizacao(nova,atual){
+  versaoNova=nova||0;
+  // na abertura só falamos se houver novidade; no botão, sempre respondemos
+  if(!nova){ if(!checagemSilenciosa) toast('Você já está na versão mais nova ('+atual+').'); }
+  else toast('Versão '+nova+' disponível.');
+  checagemSilenciosa=true;
+  render();
+}
+function verificarAtualizacao(){
+  if(typeof AndroidAlarme?.verificarAtualizacao!=='function') return toast('Só no app instalado.');
+  checagemSilenciosa=false; toast('Consultando…'); AndroidAlarme.verificarAtualizacao();
+}
+function baixarAtualizacao(){ if(typeof AndroidAlarme?.baixarAtualizacao==='function') AndroidAlarme.baixarAtualizacao(); }
+
 function diagAlarmeNativo(){
   const exato=pn('podeAlarmeExato',null), sobre=pn('podeSobreporTelas',null), n=pn('alarmesArmados',null);
   if(exato===null) return `<p class="muted" style="font-size:12px;margin:0">APK antigo: atualize pra ver o estado dos alarmes.</p>`;
@@ -1353,7 +1369,10 @@ function viewCfg(){
     <div class="row2" style="margin-top:8px">
       <button class="btn ghost sm" style="width:100%" onclick="armarAlarmesNativos()&&toast('Alarmes remarcados no sistema.')">⏰ Remarcar alarmes</button>
       <button class="btn ghost sm" style="width:100%" onclick="testarAlarmeNativo()">🔔 Testar alarme</button>
-    </div>`:`
+    </div>
+    ${versaoNova
+      ? `<button class="btn sm" style="width:100%;margin-top:8px" onclick="baixarAtualizacao()">⬇️ Baixar e instalar a versão ${versaoNova}</button>`
+      : `<button class="btn ghost sm" style="width:100%;margin-top:8px" onclick="verificarAtualizacao()">🔄 Procurar atualização do app</button>`}`:`
     <div class="row2">
       <button class="btn ghost sm" style="width:100%" onclick="pedirPermissao()">🔔 Ativar notificações</button>
       <button class="btn ghost sm" style="width:100%" onclick="instalarApp()">📲 Instalar no celular</button>
@@ -1447,7 +1466,12 @@ function enterApp(){ $('#login').classList.add('hidden'); $('#app').classList.re
    silencia quem pede sem gesto), por isso ainda mostramos o convite. */
 async function prepararAvisos(){
   // no APK quem acorda o aparelho é o AlarmManager, não a permissão do navegador
-  if(temPonteNativa()){ armarAlarmesNativos(); esconderConvite(); atualizarDiagNotif(); return; }
+  if(temPonteNativa()){
+    armarAlarmesNativos(); esconderConvite(); atualizarDiagNotif();
+    // confere versão nova em segundo plano; só fala se houver
+    try{ if(typeof AndroidAlarme.verificarAtualizacao==='function') AndroidAlarme.verificarAtualizacao(); }catch(e){}
+    return;
+  }
   if(porQueSemNotificacao()){ mostrarConvite(); return; }
   if(Notification.permission==='default'){
     try{ await Notification.requestPermission(); }catch(e){}

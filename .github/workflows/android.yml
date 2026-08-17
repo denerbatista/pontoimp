@@ -33,6 +33,10 @@ jobs:
 
       - name: Compilar APK de debug
         working-directory: android
+        env:
+          # o versionCode passa a ser o número do run, igual à tag apk-N da
+          # release — é a comparação que o atualizador do app faz
+          RUN_NUMBER: ${{ github.run_number }}
         run: gradle assembleDebug --no-daemon --stacktrace
 
       - name: Publicar o APK como artefato

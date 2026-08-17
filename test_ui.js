@@ -598,7 +598,10 @@ const server = http.createServer((req,res)=>{
       // a ponte que o WebView do app injeta
       window.AndroidAlarme = { agendar:(j)=>window.registrarAgenda(j), disponivel:()=>true,
         podeAlarmeExato:()=>false, podeSobreporTelas:()=>true, alarmesArmados:()=>0,
-        pedirAlarmeExato:()=>{}, pedirSobreporTelas:()=>{}, testarAlarme:()=>{} };
+        pedirAlarmeExato:()=>{}, pedirSobreporTelas:()=>{}, testarAlarme:()=>{},
+        // o lado nativo responde por callback, como o WebView faz de verdade
+        verificarAtualizacao:()=>setTimeout(()=>window.aoVerificarAtualizacao(14,11),30),
+        baixarAtualizacao:()=>window.baixouChamado&&window.baixouChamado() };
       const d=new Date(); const hoje=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
       localStorage.setItem('pontoimp.v2',JSON.stringify({ gateway:'http://localhost:'+port+'/gw',
         auth:{banco:'1',tipo:'0',usuario:'9',senha:'',token:'fake',lembrar:true},
@@ -634,6 +637,23 @@ const server = http.createServer((req,res)=>{
     check('mostra quantos alarmes estão marcados', /Alarmes marcados pra hoje/.test(cfg));
     check('permissão pendente vira botão, não texto morto',
       (await page.locator('button:has-text("permitir")').count())===1);
+
+    // atualização do APK: o app confere sozinho ao abrir e oferece baixar
+    check('detecta versão nova ao abrir', await page.evaluate(()=>versaoNova===14));
+    check('oferece baixar a versão nova',
+      (await page.locator('button:has-text("Baixar e instalar a versão 14")').count())===1);
+    check('checagem automática não fala quando já está atualizado', await page.evaluate(async()=>{
+      checagemSilenciosa=true; aoVerificarAtualizacao(0,14);
+      document.querySelector('#toast').textContent='';
+      aoVerificarAtualizacao(0,14);
+      await new Promise(r=>setTimeout(r,60));
+      return document.querySelector('#toast').textContent==='';
+    }));
+    check('no botão, responde mesmo estando atualizado', await page.evaluate(async()=>{
+      checagemSilenciosa=false; aoVerificarAtualizacao(0,14);
+      await new Promise(r=>setTimeout(r,60));
+      return /versão mais nova/.test(document.querySelector('#toast').textContent);
+    }));
     check('sem erros de JS dentro do app', errs.length===0 || (console.log('   errs:',errs), false));
     await page.close();
   }
