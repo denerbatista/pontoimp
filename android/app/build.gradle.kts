@@ -17,6 +17,12 @@ android {
         versionName = "1.0." + (System.getenv("RUN_NUMBER") ?: "0")
     }
 
+    // Chave própria e estável. Sem ela, o runner do CI gera um debug.keystore
+    // novo a cada build: a assinatura muda, e o Android recusa a atualização
+    // por conflito de assinatura — nenhuma atualização instalaria.
+    val chave = file("pontoimp.jks")
+    val temChave = chave.exists()
+
     signingConfigs {
         // O AGP desliga a assinatura v1 quando minSdk >= 24. O Android 12 aceita
         // só v2, mas instaladores de fabricante às vezes recusam — religar a v1
@@ -26,17 +32,24 @@ android {
             enableV2Signing = true
             enableV3Signing = true
         }
+        if (temChave) create("estavel") {
+            storeFile = chave
+            storePassword = System.getenv("KEYSTORE_SENHA") ?: "pontoimp2026"
+            keyAlias = System.getenv("KEYSTORE_ALIAS") ?: "pontoimp"
+            keyPassword = System.getenv("KEYSTORE_SENHA") ?: "pontoimp2026"
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
+        }
     }
 
     buildTypes {
         debug {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName(if (temChave) "estavel" else "debug")
         }
         release {
             isMinifyEnabled = false
-            // assinatura de debug de propósito: a distribuição é por APK direto,
-            // fora da Play Store. Trocar quando/se for publicar.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName(if (temChave) "estavel" else "debug")
         }
     }
 
