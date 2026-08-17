@@ -692,7 +692,8 @@ function agendaDeHoje(){
 const temPonteNativa=()=>typeof AndroidAlarme!=='undefined'&&!!AndroidAlarme.agendar;
 function armarAlarmesNativos(){
   if(!temPonteNativa()) return false;
-  try{ AndroidAlarme.agendar(JSON.stringify(agendaDeHoje())); return true; }
+  // hoje com as batidas reais, mais os próximos dias no padrão
+  try{ AndroidAlarme.agendar(JSON.stringify(agendaDeHoje().concat(agendaFutura()))); return true; }
   catch(e){ return false; }
 }
 // versões antigas do APK não têm estes métodos: perguntar sem quebrar
@@ -721,7 +722,8 @@ function verificarAtualizacao(){
 function baixarAtualizacao(){ if(typeof AndroidAlarme?.baixarAtualizacao==='function') AndroidAlarme.baixarAtualizacao(); }
 
 function diagAlarmeNativo(){
-  const exato=pn('podeAlarmeExato',null), sobre=pn('podeSobreporTelas',null), n=pn('alarmesArmados',null);
+  const exato=pn('podeAlarmeExato',null), sobre=pn('podeSobreporTelas',null),
+        bateria=pn('podeIgnorarBateria',null), n=pn('alarmesArmados',null);
   if(exato===null) return `<p class="muted" style="font-size:12px;margin:0">APK antigo: atualize pra ver o estado dos alarmes.</p>`;
   const linha=(ok,txt,acao,rot)=>`<div class="detLinha"><span>${txt}</span>${ok
     ? '<b style="color:var(--ok)">liberado</b>'
@@ -729,10 +731,40 @@ function diagAlarmeNativo(){
   return `<div class="detDia" style="margin-top:0;border-top:0;padding-top:0">
     ${linha(exato,'Alarme na hora exata',"AndroidAlarme.pedirAlarmeExato()",'permitir')}
     ${linha(sobre,'Abrir sobre outras telas',"AndroidAlarme.pedirSobreporTelas()",'permitir')}
-    <div class="detLinha"><span>Alarmes marcados pra hoje</span><b style="color:${n?'var(--ok)':'var(--warn)'}">${n===null?'—':n}</b></div>
+    ${bateria===null?'':linha(bateria,'Ignorar economia de bateria',"AndroidAlarme.pedirIgnorarBateria()",'permitir')}
+    <div class="detLinha"><span>Alarmes marcados no sistema</span><b style="color:${n?'var(--ok)':'var(--warn)'}">${n===null?'—':n}</b></div>
+    <p class="muted" style="font-size:12px;margin:8px 0 0">Inclui os próximos dias úteis no seu horário padrão, então um dia sem abrir o app não fica sem alarme. Eles não precisam do app rodando: quem acorda o aparelho é o despertador do sistema.</p>
     ${(!exato)?'<p class="muted" style="font-size:12px;margin:8px 0 0">Sem o alarme exato o Android não marca nada, e o aviso só aparece com o app aberto.</p>':''}
     ${(!sobre)?'<p class="muted" style="font-size:12px;margin:8px 0 0">Com o celular desbloqueado o Android mostra só um aviso no topo — é ele que impede app de roubar a tela alheia. Liberando “abrir sobre outras telas”, o alarme sobe em tela cheia mesmo assim.</p>':''}
+    ${(bateria===false)?'<p class="muted" style="font-size:12px;margin:8px 0 0">A suspensão de apps da Samsung é mais agressiva que o padrão do Android e mata o alarme mesmo marcado. Sem essa isenção, fechar o app pode fazer o aviso não chegar.</p>':''}
   </div>`;
+}
+
+/* Os alarmes só eram marcados pro dia de hoje, então um dia sem abrir o app
+   ficava sem alarme nenhum. Marcamos os próximos dias úteis adiantado, com o
+   horário padrão — quando o app abrir de novo, refina com as batidas reais.
+   Isso resolve sem serviço em segundo plano, que custaria bateria e notificação
+   permanente pra fazer o que o AlarmManager já faz sozinho. */
+function agendaFutura(dias=10){
+  if(!S.cfg.alarmes) return [];
+  const out=[]; const base=new Date(); base.setHours(0,0,0,0);
+  for(let d=1;d<=dias;d++){
+    const dt=new Date(base); dt.setDate(dt.getDate()+d);
+    const wd=dt.getDay(); if(wd===0||wd===6) continue;          // folga não tem carga
+    const iso=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+    const p=planejarDia({},cfgDoDia(iso));                      // dia limpo: plano padrão
+    const meia=dt.getTime();
+    [['ent','🏢 Hora de entrar',p.plano.entrada],
+     ['alm','🍽️ Hora do almoço',p.plano.saidaAlmoco],
+     ['volta','💼 Hora de voltar',p.plano.voltaAlmoco],
+     ['sai','🏁 SAIA AGORA',p.alvoSaida]].forEach(([k,titulo,hora])=>{
+      const m=toMin(hora||''); if(m==null) return;
+      out.push({ ts:meia+m*60000, chave:iso+'|'+k, titulo,
+        corpo:'Previsto pelo seu padrão — abra o app pra conferir com as batidas do dia.',
+        nivel:'alarme' });
+    });
+  }
+  return out;
 }
 
 let ultimaAgenda=''; // evita repostar a mesma agenda a cada sincronização

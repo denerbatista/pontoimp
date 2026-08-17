@@ -102,6 +102,27 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        /* Sem a isenção de bateria a Samsung suspende o app e o alarme não
+           dispara, mesmo marcado com setAlarmClock. */
+        @JavascriptInterface
+        fun podeIgnorarBateria(): Boolean =
+            getSystemService(android.os.PowerManager::class.java)
+                ?.isIgnoringBatteryOptimizations(packageName) ?: true
+
+        @JavascriptInterface
+        @android.annotation.SuppressLint("BatteryLife")
+        fun pedirIgnorarBateria() {
+            runOnUiThread {
+                runCatching {
+                    startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                        Uri.parse("package:$packageName")))
+                }.onFailure {
+                    // alguns aparelhos escondem a tela direta; caímos na lista geral
+                    runCatching { startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
+                }
+            }
+        }
+
         @JavascriptInterface
         fun pedirSobreporTelas() {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return

@@ -613,8 +613,8 @@ const server = http.createServer((req,res)=>{
     await page.addInitScript(({port})=>{
       // a ponte que o WebView do app injeta
       window.AndroidAlarme = { agendar:(j)=>window.registrarAgenda(j), disponivel:()=>true,
-        podeAlarmeExato:()=>false, podeSobreporTelas:()=>true, alarmesArmados:()=>0,
-        pedirAlarmeExato:()=>{}, pedirSobreporTelas:()=>{}, testarAlarme:()=>{},
+        podeAlarmeExato:()=>false, podeSobreporTelas:()=>true, podeIgnorarBateria:()=>false, alarmesArmados:()=>0,
+        pedirAlarmeExato:()=>{}, pedirSobreporTelas:()=>{}, pedirIgnorarBateria:()=>{}, testarAlarme:()=>{},
         // o lado nativo responde por callback, como o WebView faz de verdade
         verificarAtualizacao:()=>setTimeout(()=>window.aoVerificarAtualizacao(14,11),30),
         baixarAtualizacao:()=>window.baixouChamado&&window.baixouChamado() };
@@ -633,6 +633,23 @@ const server = http.createServer((req,res)=>{
     await page.waitForTimeout(1000);
 
     check('a página reconhece que está dentro do app', await page.evaluate(()=>temPonteNativa()));
+
+    // um dia sem abrir o app deixava aquele dia sem alarme nenhum
+    const fut = await page.evaluate(()=>agendaFutura());
+    check('marca os próximos dias úteis adiantado', fut.length>0);
+    check('nenhum alarme futuro cai em sábado ou domingo',
+      fut.every(e=>{ const d=new Date(e.ts).getDay(); return d>=1&&d<=5; }));
+    check('todos os futuros estão à frente de agora',
+      await page.evaluate(()=>agendaFutura().every(e=>e.ts>Date.now())));
+    check('quatro alarmes por dia útil', fut.length%4===0);
+    check('chave prefixada pela data de cada dia',
+      fut.every(e=>/^\d{4}-\d{2}-\d{2}\|/.test(e.chave)));
+    check('avisa que o horário é o padrão, não o real',
+      fut.every(e=>/padrão/i.test(e.corpo)));
+    check('alarmes desligados não marcam dias futuros', await page.evaluate(()=>{
+      const a=S.cfg.alarmes; S.cfg.alarmes=false;
+      const v=agendaFutura().length; S.cfg.alarmes=a; return v===0;
+    }));
     check('entrega a agenda pro lado nativo', agendados.length>0
       && Array.isArray(JSON.parse(agendados[0])));
     check('não pede permissão de notificação do navegador',
@@ -650,9 +667,13 @@ const server = http.createServer((req,res)=>{
       /Alarme na hora exata/.test(cfg) && /Abrir sobre outras telas/.test(cfg));
     check('avisa que sem alarme exato nada é marcado',
       /o Android não marca nada/.test(cfg));
-    check('mostra quantos alarmes estão marcados', /Alarmes marcados pra hoje/.test(cfg));
+    check('mostra quantos alarmes estão marcados', /Alarmes marcados no sistema/.test(cfg));
     check('permissão pendente vira botão, não texto morto',
-      (await page.locator('button:has-text("permitir")').count())===1);
+      (await page.locator('button:has-text("permitir")').count())===2);
+    check('pede a isenção de economia de bateria, que a Samsung exige',
+      /Ignorar economia de bateria/.test(cfg));
+    check('explica que a suspensão da Samsung mata o alarme',
+      /suspensão de apps da Samsung/.test(cfg));
 
     // atualização do APK: o app confere sozinho ao abrir e oferece baixar
     check('detecta versão nova ao abrir', await page.evaluate(()=>versaoNova===14));

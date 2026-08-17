@@ -16,6 +16,9 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- atualização por fora da loja: baixar e abrir o instalador do sistema -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- a suspensão de apps da Samsung é mais agressiva que o Doze padrão e mata
+         o alarme mesmo agendado com setAlarmClock; isto pede a isenção -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission
         android:name="android.permission.SCHEDULE_EXACT_ALARM"
         android:maxSdkVersion="32" />
