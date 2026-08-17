@@ -53,9 +53,12 @@ class TelaAlarme : AppCompatActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
-    /* USAGE_ALARM é o que faz tocar mesmo com o celular no silencioso —
-       é o mesmo canal de áudio que o despertador do sistema usa. */
+    /* Respeita o modo do aparelho: no vibrar (ou silencioso) só vibra, som só
+       quando o toque geral está ligado. USAGE_ALARM sozinho atravessaria os
+       dois modos, que é justamente o que não queremos aqui. */
     private fun tocar() {
+        val modo = getSystemService(android.media.AudioManager::class.java)?.ringerMode
+        if (modo != android.media.AudioManager.RINGER_MODE_NORMAL) return
         val som = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             ?: return

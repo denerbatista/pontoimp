@@ -22,14 +22,10 @@ class App : Application() {
             description = "Toca na hora de entrar, almoçar, voltar e sair"
             setBypassDnd(true)
             enableVibration(true)
-            // som no canal de alarme: é o que atravessa o silencioso
-            setSound(
-                android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_ALARM),
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build()
-            )
+            // sem som no canal: quem toca é a TelaAlarme, que consulta o modo do
+            // aparelho antes. Se o canal também tocasse, o silencioso seria
+            // ignorado — o canal de alarme atravessa o modo vibrar.
+            setSound(null, null)
         }
         val aviso = NotificationChannel(CANAL_AVISO, "Avisos", NotificationManager.IMPORTANCE_DEFAULT).apply {
             description = "Lembretes que não precisam acordar você"

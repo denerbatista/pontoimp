@@ -11,6 +11,9 @@
     <!-- USE_EXACT_ALARM: concedida na instalação, para app cuja função é despertar.
          SCHEDULE_EXACT_ALARM cobre o Android 12, onde a primeira não existe. -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <!-- alguns fabricantes (Samsung entre eles) só deixam a tela de alarme subir
+         sobre outros apps com esta permissão, concedida numa tela do sistema -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission
         android:name="android.permission.SCHEDULE_EXACT_ALARM"
         android:maxSdkVersion="32" />

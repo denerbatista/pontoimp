@@ -77,6 +77,54 @@ class MainActivity : AppCompatActivity() {
         /** A página usa isto pra saber que está rodando dentro do app. */
         @JavascriptInterface
         fun disponivel(): Boolean = true
+
+        /* Sem estes, a falta de permissão de alarme exato derrubava tudo em
+           silêncio: nada era agendado e a tela não tinha como contar. */
+        @JavascriptInterface
+        fun podeAlarmeExato(): Boolean =
+            AgendadorAlarmes.podeExatos(getSystemService(AlarmManager::class.java))
+
+        @JavascriptInterface
+        fun alarmesArmados(): Int = AgendadorAlarmes.armadosAgora(applicationContext)
+
+        @JavascriptInterface
+        fun podeSobreporTelas(): Boolean =
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this@MainActivity)
+
+        @JavascriptInterface
+        fun pedirAlarmeExato() {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+            runOnUiThread {
+                runCatching {
+                    startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                        Uri.parse("package:$packageName")))
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun pedirSobreporTelas() {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+            runOnUiThread {
+                runCatching {
+                    startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:$packageName")))
+                }
+            }
+        }
+
+        /** Dispara a tela de alarme agora, pra você conferir sem esperar o horário. */
+        @JavascriptInterface
+        fun testarAlarme() {
+            runOnUiThread {
+                sendBroadcast(Intent(applicationContext, ReceptorAlarme::class.java).apply {
+                    putExtra("chave", "teste")
+                    putExtra("titulo", "⏰ Teste de alarme")
+                    putExtra("corpo", "Se você está vendo isto, o alarme funciona.")
+                    putExtra("alarme", true)
+                })
+            }
+        }
     }
 
     override fun onBackPressed() {

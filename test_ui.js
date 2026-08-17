@@ -596,7 +596,9 @@ const server = http.createServer((req,res)=>{
     await page.exposeFunction('registrarAgenda', (j)=>agendados.push(j));
     await page.addInitScript(({port})=>{
       // a ponte que o WebView do app injeta
-      window.AndroidAlarme = { agendar:(j)=>window.registrarAgenda(j), disponivel:()=>true };
+      window.AndroidAlarme = { agendar:(j)=>window.registrarAgenda(j), disponivel:()=>true,
+        podeAlarmeExato:()=>false, podeSobreporTelas:()=>true, alarmesArmados:()=>0,
+        pedirAlarmeExato:()=>{}, pedirSobreporTelas:()=>{}, testarAlarme:()=>{} };
       const d=new Date(); const hoje=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
       localStorage.setItem('pontoimp.v2',JSON.stringify({ gateway:'http://localhost:'+port+'/gw',
         auth:{banco:'1',tipo:'0',usuario:'9',senha:'',token:'fake',lembrar:true},
@@ -624,6 +626,14 @@ const server = http.createServer((req,res)=>{
     check('some o push, substituído pelo alarme do sistema', !/Avisar com o app fechado/.test(cfg));
     check('aparece o remarcar alarmes', /Remarcar alarmes/.test(cfg));
     check('explica que o alarme é do sistema', /despertador do sistema/.test(cfg));
+    // a falta de permissão de alarme exato derrubava tudo em silêncio
+    check('mostra o estado das permissões do alarme',
+      /Alarme na hora exata/.test(cfg) && /Abrir sobre outras telas/.test(cfg));
+    check('avisa que sem alarme exato nada é marcado',
+      /o Android não marca nada/.test(cfg));
+    check('mostra quantos alarmes estão marcados', /Alarmes marcados pra hoje/.test(cfg));
+    check('permissão pendente vira botão, não texto morto',
+      (await page.locator('button:has-text("permitir")').count())===1);
     check('sem erros de JS dentro do app', errs.length===0 || (console.log('   errs:',errs), false));
     await page.close();
   }
