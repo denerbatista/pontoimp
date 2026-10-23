@@ -22,10 +22,42 @@ function espelhoFake(){
     { data: isoLocal(diasAtras(3))+'T12:00:00', batidas:[] },
   ]};
 }
+let chamadasApi = [];        // corpos recebidos em /gwapi/me/api
+let infoInclusao = {};       // resposta do GET /IncluirPonto
+let perfilApi = { id:144, nome:'Dener Batista', empresa:'Impacta', podeIncluirPontoManual:true,
+  funcionalidades:[1], dadosPerfilFuncionario:{ tipoPerfil:0, telasOcultar:['Ajuda'] } };
 let ultimoPonto = null;         // corpo do último POST /me/ponto
 let ultimaJustificativa = null; // corpo do último POST /me/inconsistencia
 const server = http.createServer((req,res)=>{
   let p = req.url.split('?')[0];
+  // ---- gateway com /me/api: as telas do Mais e o registrar ponto
+  if(p.startsWith('/gwapi/')){
+    let b=''; req.on('data',d=>b+=d);
+    req.on('end',()=>{
+      res.setHeader('Content-Type','application/json');
+      const resp=(o)=>res.end(JSON.stringify(o));
+      if(p==='/gwapi/health') return resp({ok:true});
+      if(p==='/gwapi/me') return resp(perfilApi);
+      if(p.startsWith('/gwapi/me/espelho')) return resp({ lista:[{ data:isoLocal(diasAtras(0))+'T12:00:00', batidas:[] }] });
+      if(p==='/gwapi/me/endereco') return resp({ endereco:'Rua do Teste, 10' });
+      if(p==='/gwapi/auth/recuperar'){ const c=JSON.parse(b||'{}'); chamadasApi.push({recuperar:c});
+        return res.end(JSON.stringify(c.etapa==='ObterEmailOcultoFuncionario'?'d***@x.com':true)); }
+      if(p!=='/gwapi/me/api') return resp([]);
+      const c=JSON.parse(b||'{}'); chamadasApi.push(c);
+      const r=c.rota||'';
+      if(r==='/IncluirPonto'&&c.metodo==='GET') return resp(infoInclusao);
+      if(r.startsWith('/IncluirPonto?')) return resp({ok:true});
+      if(r==='/ControleFerias/Saldo') return resp({ saldo:12, movimentacoes:[{data:'2026-01-05T00:00:00',dataFim:'2026-01-14T00:00:00',descricaoMovimentacao:'Gozo',dias:10}] });
+      if(r.startsWith('/Batidas/')) return resp({ lista:[{ id:9, data:'2026-08-12T00:00:00', situacao:0,
+          batidas:[{nome:'Entrada 1',valor:'08:00',valorOriginal:'08:00',ehRepP:true}],
+          valores:[{nome:'Normais',valor:'08:12'}] }], totais:[{nome:'Normais',valor:'08:12'}] });
+      if(r.startsWith('/Solicitacoes/')&&c.metodo==='GET') return resp([{ id:5, tipo:'Ajuste de ponto', tipoSolicitacao:0, status:0,
+          data:'2026-08-10T00:00:00', funcionarioNome:'Fulano', alteracoesFonteDados:[] }]);
+      if(r==='/Justificativas') return resp([{id:3,descricao:'Consulta médica',exigirFotoAtestado:false}]);
+      return resp({ok:true});
+    });
+    return;
+  }
   // ---- gateway com inclusão manual habilitada
   if(p==='/gwman/me/ponto' && req.method==='POST'){
     let b=''; req.on('data',d=>b+=d);
@@ -140,7 +172,7 @@ const server = http.createServer((req,res)=>{
       if(passouAlmoco) check('ampulheta de batida pendente', body.includes('esperando o Secullum processar'));
 
       // navegação: barra inferior, aba ativa e logo voltando pro início
-      check('barra de navegação tem as três abas', (await page.locator('#nav button').count())===3);
+      check('barra de navegação tem as quatro abas', (await page.locator('#nav button').count())===4);
       check('aba Hoje começa marcada', await page.locator('#nav button[data-v="hoje"]').evaluate(b=>b.classList.contains('on')));
       await page.click('#nav button[data-v="cfg"]');
       await page.waitForTimeout(200);
@@ -539,8 +571,8 @@ const server = http.createServer((req,res)=>{
     await page.waitForTimeout(250);
     await page.click('button:has-text("Testar conexão")');
     await page.waitForTimeout(600);
-    check('teste de conexão confirma o gateway com as rotas',
-      /com as rotas de ajuste/i.test(await page.textContent('#toast')));
+    check('teste de conexão acusa o gateway sem /me/api',
+      /com ajuste e justificativa, mas sem \/me\/api/i.test(await page.textContent('#toast')));
 
     check('sem erros de JS no ponto manual', errs.length===0 || (console.log('   errs:',errs), false));
     await page.close();
@@ -739,6 +771,161 @@ const server = http.createServer((req,res)=>{
       return /versão mais nova/.test(document.querySelector('#toast').textContent);
     }));
     check('sem erros de JS dentro do app', errs.length===0 || (console.log('   errs:',errs), false));
+    await page.close();
+  }
+
+  // ---- 9) recursos do app oficial: registrar ponto e as telas do Mais
+  {
+    const ctx = await browser.newContext({ geolocation:{ latitude:-23.55, longitude:-46.63, accuracy:12 }, permissions:['geolocation'] });
+    const page = await ctx.newPage();
+    const errs=[]; page.on('pageerror',e=>errs.push(String(e)));
+    await page.addInitScript(({port})=>{
+      const d=new Date(); const hoje=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      localStorage.setItem('pontoimp.v2',JSON.stringify({ gateway:'http://localhost:'+port+'/gwapi', cfg:{},
+        auth:{banco:'1',tipo:'0',usuario:'9',senha:btoa('segredo'),token:'fake',lembrar:true},
+        func:{nome:'Dener Batista',empresa:'Impacta'},
+        hoje:{data:hoje,entrada:null,saidaAlmoco:null,voltaAlmoco:null,saida:null},
+        hist:{ts:0,dias:[]}, notificados:{}, ultimaSyncMs:Date.now() }));
+    },{port:PORT});
+    await page.clock.setFixedTime(HOJE);
+    await page.goto(`http://localhost:${PORT}/`);
+    await page.waitForTimeout(900);
+
+    check('botão de registrar ponto aparece com a inclusão liberada',
+      (await page.locator('button:has-text("Registrar ponto")').count())>=1);
+    chamadasApi=[];
+    await page.click('button.regGrande');
+    await page.waitForTimeout(900);
+    check('registro mostra o endereço da coordenada', (await page.textContent('#sheetX')).includes('Rua do Teste, 10'));
+    await page.click('#regBtn');
+    await page.waitForTimeout(700);
+    const bat=chamadasApi.find(c=>String(c.rota).startsWith('/IncluirPonto?'));
+    check('registro vai pro /IncluirPonto com o id da sessão', bat && bat.metodo==='POST' && bat.rota==='/IncluirPonto?funcionarioId={funcionarioId}');
+    check('registro leva a localização real do aparelho', bat && bat.corpo.latitude===-23.55 && bat.corpo.longitude===-46.63 && bat.corpo.precisao===12);
+    check('registro não manda hora: quem carimba é o servidor', bat && !('dataHora' in bat.corpo));
+    check('registro identifica o aparelho', bat && typeof bat.corpo.identificacaoDispositivo==='string' && bat.corpo.identificacaoDispositivo.length>8);
+    check('dentro da cerca vai como dentro', bat && bat.corpo.foraDoPerimetro===false);
+
+    // perímetro: a mesma conta do app oficial (círculo por raio e polígono)
+    check('perímetro em círculo', await page.evaluate(()=>{
+      const c=[{circulo:true,radius:200,coordenadas:[{lat:-23.55,lng:-46.63}]}];
+      return dentroDoPerimetro(-23.5505,-46.6305,c)===true && dentroDoPerimetro(-23.56,-46.63,c)===false; }));
+    check('perímetro em polígono', await page.evaluate(()=>{
+      const q=[{coordenadas:[{lat:0,lng:0},{lat:0,lng:1},{lat:1,lng:1},{lat:1,lng:0}]}];
+      return dentroDoPerimetro(.5,.5,q)===true && dentroDoPerimetro(1.5,.5,q)===false; }));
+    infoInclusao={ perimetrosAutorizados:[{circulo:true,radius:50,coordenadas:[{lat:-22,lng:-43}]}], somentePerimetrosAutorizados:true };
+    await page.click('button.regGrande');
+    await page.waitForTimeout(900);
+    check('fora da cerca exclusiva o registro fica travado', await page.locator('#regBtn').isDisabled()
+      && (await page.textContent('#sheetX')).includes('fora do perímetro'));
+    await page.evaluate(()=>fecharSheetX());
+    infoInclusao={};
+
+    // aba Mais: as telas seguem as regras de exibição do app oficial
+    await page.click('#nav button[data-v="mais"]');
+    await page.waitForTimeout(300);
+    const menu=await page.textContent('#views');
+    check('Mais lista as telas do app oficial', /Cartão ponto/.test(menu)&&/Justificar ausência/.test(menu)&&/Solicitações/.test(menu));
+    check('tela oculta pela empresa não aparece', !/Ajuda/.test(menu));
+    check('funcionalidade não contratada não aparece', /Férias/.test(menu) && !/Arquivos/.test(menu));
+    check('funcionário comum não vê dados gerenciais', !/Dados gerenciais/.test(menu));
+
+    await page.click('.menuGrid button:has-text("Férias")');
+    await page.waitForTimeout(500);
+    check('férias mostra o saldo do Secullum', (await page.textContent('#views')).includes('12 dias'));
+    await page.click('button:has-text("Solicitar férias")');
+    await page.fill('#fe_ini','2026-12-01'); await page.fill('#fe_fim','2026-12-20');
+    chamadasApi=[];
+    await page.click('#sheetX button:has-text("Enviar solicitação")');
+    await page.waitForTimeout(500);
+    const fer=chamadasApi.find(c=>c.rota==='/Solicitacoes/Ferias');
+    check('férias vai pra /Solicitacoes/Ferias com tipo 21', fer && fer.corpo.tipo===21);
+    check('férias manda as datas no formato do app', fer && fer.corpo.dataInicioAfastamento==='2026-12-01T00:00:00.000Z'
+      && fer.corpo.dataFimAfastamento==='2026-12-20T00:00:00.000Z');
+
+    await page.click('#nav button[data-v="mais"]');
+    await page.click('.menuGrid button:has-text("Cartão ponto")');
+    await page.waitForTimeout(500);
+    const cart=await page.textContent('#views');
+    check('cartão ponto mostra batidas e cálculos', cart.includes('Entrada 1') && cart.includes('08:12'));
+    check('cartão ponto oferece o comprovante da batida', (await page.locator('a[title="Comprovante"]').count())===1);
+
+    await page.click('#nav button[data-v="mais"]');
+    await page.click('.menuGrid button:has-text("Justificar ausência")');
+    await page.waitForTimeout(500);
+    await page.selectOption('#views select >> nth=2','3');
+    chamadasApi=[];
+    await page.click('button:has-text("Enviar justificativa")');
+    await page.waitForTimeout(500);
+    const aus=chamadasApi.find(c=>c.metodo==='POST'&&c.rota==='/Solicitacoes');
+    check('ausência de dia inteiro vai como tipo 2', aus && aus.corpo.tipo===2 && aus.corpo.justificativaId===3);
+    check('ausência pede o molde do dia antes', chamadasApi.some(c=>c.metodo==='GET'&&/^\/Solicitacoes\/\d{4}-\d{2}-\d{2}\/\{funcionarioId\}\?origemRequisicao=0$/.test(c.rota)));
+
+    // gestor: o grupo de dados gerenciais aparece e aprova pela rota certa
+    await page.evaluate(()=>{ S.perfil.dadosPerfilFuncionario.tipoPerfil=1; go('mais'); });
+    check('gestor vê os dados gerenciais', /Dados gerenciais/.test(await page.textContent('#views')));
+    await page.click('.menuGrid button:has-text("Solicitações da equipe")');
+    await page.waitForTimeout(500);
+    chamadasApi=[];
+    await page.click('button:has-text("Aprovar")');
+    await page.waitForTimeout(400);
+    const apr=chamadasApi.find(c=>c.metodo==='POST');
+    check('gestor aprova pela rota do tipo', apr && apr.rota==='/Solicitacoes/Aceitar' && apr.corpo.id===5);
+    check('rota de resposta segue o tipo', await page.evaluate(()=>rotaResponder(22,'Aceitar')==='/Solicitacoes/AceitarVendaFerias'
+      && rotaResponder(21,'Descartar')==='/Solicitacoes/DescartarAfastamento'
+      && rotaResponder(20,'Aceitar')==='/Solicitacoes/AceitarJustificarInconsistencia'));
+    await page.evaluate(()=>go('cfg'));
+    await page.waitForTimeout(250);
+    await page.click('button:has-text("Testar conexão")');
+    await page.waitForTimeout(600);
+    const tc=await page.textContent('#toast');
+    check('teste de conexão confirma todas as rotas', /todas as rotas publicadas/.test(tc) || (console.log('   toast:',tc), false));
+    check('sem erros de JS nos recursos novos', errs.length===0 || (console.log('   errs:',errs), false));
+    await ctx.close();
+  }
+
+  // ---- 10) APK: só o alarme nativo toca, a página não dobra
+  {
+    const page = await browser.newPage();
+    await page.addInitScript(({port})=>{
+      window.AndroidAlarme={ agendar(){}, disponivel(){ return true; } };
+      const d=new Date(); const hoje=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+      localStorage.setItem('pontoimp.v2',JSON.stringify({ gateway:'http://localhost:'+port+'/gwapi', cfg:{},
+        auth:{banco:'1',tipo:'0',usuario:'9',senha:'',token:'fake',lembrar:true}, func:{nome:'D'},
+        hoje:{data:hoje}, hist:{ts:0,dias:[]}, notificados:{}, ultimaSyncMs:Date.now() }));
+    },{port:PORT});
+    await page.clock.setFixedTime(HOJE);
+    await page.goto(`http://localhost:${PORT}/`);
+    await page.waitForTimeout(600);
+    await page.evaluate(()=>notificar('⏰ Hora de sair','teste','k','alarme'));
+    await page.waitForTimeout(150);
+    check('no APK a página não sobe a sirene (o nativo toca)', await page.locator('#alarmOverlay').isHidden());
+    check('no APK a página não dispara a agenda por conta própria', await page.evaluate(()=>{
+      S.notificados={}; let n=0; const o=notificar; window.notificar=()=>n++; checarAvisos(); window.notificar=o; return n===0; }));
+    await page.close();
+  }
+
+  // ---- 11) navegador: o alarme da página continua tocando
+  {
+    const page = await browser.newPage();
+    await page.goto(`http://localhost:${PORT}/`);
+    await page.waitForTimeout(300);
+    await page.evaluate(()=>{ S.cfg.modoAlarme=true; notificar('⏰ Hora de sair','teste','k','alarme'); });
+    await page.waitForTimeout(150);
+    check('no navegador o alarme da página toca', await page.locator('#alarmOverlay').isVisible());
+    await page.click('text=PARAR ALARME');
+
+    // esqueci a senha: antes do login, pelo gateway sem sessão
+    await page.evaluate((port)=>{ S.gateway='http://localhost:'+port+'/gwapi'; },PORT);
+    await page.fill('#l_banco','77'); await page.fill('#l_user','123');
+    chamadasApi=[];
+    await page.click('text=Esqueci minha senha');
+    await page.click('#sheetX button:has-text("Continuar")');
+    await page.waitForTimeout(400);
+    const rec=chamadasApi.find(c=>c.recuperar);
+    check('recuperar senha pede o e-mail oculto', rec && rec.recuperar.banco==='77' && rec.recuperar.etapa==='ObterEmailOcultoFuncionario'
+      && rec.recuperar.corpo.usuario==='123');
+    check('mostra o e-mail mascarado', (await page.textContent('#sheetX')).includes('d***@x.com'));
     await page.close();
   }
 

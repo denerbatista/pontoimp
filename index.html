@@ -68,7 +68,7 @@
 
   /* ---------- BARRA DE NAVEGAÇÃO (polegar alcança) ---------- */
   .nav{position:fixed;left:0;right:0;bottom:0;z-index:40;
-    display:grid;grid-template-columns:repeat(3,1fr);gap:4px;
+    display:grid;grid-template-columns:repeat(4,1fr);gap:4px;
     padding:8px 10px calc(8px + env(safe-area-inset-bottom));
     background:rgba(21,26,46,.92);backdrop-filter:blur(14px);
     border-top:1px solid var(--line)}
@@ -166,6 +166,30 @@
 
   /* no topo: embaixo ele disputava espaço com a barra de abas e com os
      botões das sheets, que são justamente o que o usuário vai tocar */
+  /* ---------- MAIS: as telas do app oficial ---------- */
+  .menuGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .menuGrid button{display:grid;justify-items:center;gap:6px;padding:14px 6px;border-radius:14px;
+    background:var(--bg2);border:1px solid var(--line);font-size:12px;font-weight:600;text-align:center;line-height:1.25}
+  .menuGrid button i{font-style:normal;font-size:24px;line-height:1}
+  .menuGrid button:active{transform:scale(.96)}
+  .voltar{display:flex;align-items:center;gap:8px;margin:0 0 2px;color:var(--mut);font-weight:600;font-size:14px}
+  .item{padding:12px 2px;border-bottom:1px solid var(--line)}
+  .item:last-child{border-bottom:0}
+  .item .topo{display:flex;align-items:center;gap:8px}
+  .item .topo b{flex:1;min-width:0}
+  .item p{margin:6px 0 0;font-size:13px;color:var(--mut);white-space:pre-wrap;word-break:break-word}
+  .acoes2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+  .acoes2 .btn{width:100%;padding:8px 0;font-size:12px}
+  .filtros{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end}
+  .filtros .field{margin:0}
+  .filtros .btn{height:44px}
+  .barra{height:8px;border-radius:99px;background:var(--bg2);overflow:hidden;margin-top:4px}
+  .barra span{display:block;height:100%;background:var(--grad)}
+  .termo{max-height:50vh;overflow:auto;font-size:13px;color:var(--mut);white-space:pre-wrap}
+  .camBox{position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:3/4;max-height:42vh;margin:0 auto 12px}
+  .camBox video,.camBox img{width:100%;height:100%;object-fit:cover;display:block}
+  .regGrande{width:100%;padding:16px;font-size:16px;margin-top:12px}
+
   .toast{position:fixed;top:calc(14px + env(safe-area-inset-top));
     left:50%;transform:translateX(-50%) translateY(-20px);opacity:0;
     background:var(--card2);border:1px solid var(--line);box-shadow:var(--sh);padding:13px 18px;border-radius:14px;
@@ -192,6 +216,7 @@
       <div class="toggle on" id="l_lembrar"></div>
     </div>
     <button class="btn" onclick="doLogin()">Entrar</button>
+    <button class="btn ghost sm" style="margin-top:12px;width:100%;border:0;color:var(--mut)" onclick="abrirRecuperarSenha()">Esqueci minha senha</button>
   </div>
 </section>
 
@@ -208,6 +233,7 @@
   <nav class="nav" id="nav">
     <button onclick="go('hoje')" data-v="hoje"><i>🏠</i>Hoje</button>
     <button onclick="go('hist')" data-v="hist"><i>📋</i>Histórico</button>
+    <button onclick="go('mais')" data-v="mais"><i>☰</i>Mais</button>
     <button onclick="go('cfg')" data-v="cfg"><i>⚙️</i>Ajustes</button>
   </nav>
 </section>
@@ -239,6 +265,14 @@
     <p class="muted" id="incPrevia" style="font-size:12px;margin:0 0 16px"></p>
     <button class="btn" id="incBtn" onclick="confirmarInclusao()">Enviar ajuste</button>
     <button class="btn ghost sm" style="margin-top:16px;width:100%;border:0;color:var(--mut)" onclick="fecharIncluir()">cancelar</button>
+  </div>
+</div>
+
+<!-- ============ SHEET GENÉRICA (formulários das telas do Mais) ============ -->
+<div class="sheetBg hidden" id="sheetX">
+  <div class="sheet" style="max-height:92vh;overflow:auto">
+    <div id="sheetXBox"></div>
+    <button class="btn ghost sm" style="margin-top:16px;width:100%;border:0;color:var(--mut)" onclick="fecharSheetX()">cancelar</button>
   </div>
 </div>
 
@@ -408,6 +442,8 @@ const defHoje=()=>({ data:hojeStr(), entrada:null, saidaAlmoco:null, voltaAlmoco
   almocoPrevisto:null, snoozeAte:null, perguntaFeita:false, metaHoje:'' });
 const defState=()=>({
   gateway:'', push:'', pushInscrito:false,
+  dispositivoId:'',         // identificação deste aparelho na batida, como o app oficial manda
+  perfil:null,              // /Funcionarios/{id} inteiro: decide quais telas do Mais aparecem
   auth:{banco:'',tipo:'0',usuario:'',senha:'',token:'',lembrar:true},
   func:{nome:'',empresa:'',podeManual:false},
   justificativas:[],
@@ -532,6 +568,7 @@ async function carregarPerfil(){
       : v===false ? 'desabilitada pela sua empresa no Secullum.'
       : 'o gateway respondeu, mas sem o campo podeIncluirPontoManual.';
     if(d.id) S.func.id=d.id;   // o ajuste de ponto exige funcionarioId no corpo
+    S.perfil=d;                // permissões e telas liberadas, iguais às do app oficial
     if(d.nome) S.func.nome=d.nome;
     if(d.empresa) S.func.empresa=d.empresa;
     save(); render();
@@ -643,6 +680,9 @@ function eventosDoDia(plan){
 }
 function checarAvisos(){
   if(!S.cfg.alarmes||!S.auth.token||ehFolga()) return;
+  // no APK a mesma agenda já está no AlarmManager (alarmes e avisos): tocar
+  // daqui também era o alarme dobrado — sirene da página + despertador nativo
+  if(temPonteNativa()) return;
   const plan=planejarDia(S.hoje,cfgHoje());
   const agora=nowMin();
   for(const e of eventosDoDia(plan)){
@@ -914,6 +954,8 @@ function pararAlarme(){
   const ov=$('#alarmOverlay'); if(ov) ov.classList.add('hidden');
 }
 async function notificar(titulo,corpo,tag,nivel){
+  // no APK quem toca é o lado nativo; a página só avisa na tela, sem som
+  if(temPonteNativa()){ toast(titulo+' — '+corpo); return; }
   const alarme=(nivel==='alarme'&&S.cfg.modoAlarme);
   if(alarme) dispararAlarme(titulo,corpo); else beep();
   try{
@@ -1137,6 +1179,991 @@ async function confirmarInclusao(){
   finally{ btn.disabled=false; btn.textContent='Enviar ajuste'; }
 }
 
+/* =====================================================================
+   RECURSOS DO APP OFICIAL — o que o Secullum RH faz além do espelho
+   Rotas, corpos e enums tirados do bytecode do app 1.45.0 (detalhes e
+   evidência em docs/rotas-secullum.md). Tudo passa por /me/api do
+   gateway, que só aceita as rotas que o próprio app oficial chama.
+   ===================================================================== */
+const esc=(v)=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const isoDe=(d)=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const diasAtras=(n)=>{ const d=new Date(); d.setDate(d.getDate()-n); return isoDe(d); };
+// o Secullum devolve "2026-10-20T00:00:00"; na tela vale só o dia
+const dataSec=(v)=>{ const t=String(v||'').slice(0,10); return /^\d{4}-\d{2}-\d{2}$/.test(t)?dataBR(t):(v?String(v):'—'); };
+const dataHoraSec=(v)=>{ const d=v?new Date(v):null; return d&&!isNaN(d)
+  ? d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '—'; };
+// formatIsoDate do app: hora local com o "Z" literal — é o que o servidor espera
+const isoSec=(iso)=>iso+'T00:00:00.000Z';
+
+async function sec(metodo,rota,corpo){
+  const f=()=>apiPost('/me/api',{metodo,rota,corpo});
+  let r=await f();
+  if(r.status===401&&await reloginSilencioso()) r=await f();
+  return r;
+}
+/* O Secullum responde erro de validação como [{message}] e os demais como
+   {message}; o gateway, como {erro}. 404 com "rota não encontrada" é o
+   gateway antigo, sem /me/api — dizer isso poupa procurar no lugar errado. */
+async function msgErro(r){
+  let t=''; try{ t=await r.text(); }catch(e){}
+  let j=null; try{ j=JSON.parse(t); }catch(e){}
+  if(r.status===404&&j&&j.erro==='rota não encontrada')
+    return 'O gateway ainda não tem as telas novas — falta publicar o worker de patches/.';
+  if(Array.isArray(j)&&j.length) return j.map(x=>(x&&(x.message||x.mensagem))||x).join(' ');
+  if(j&&(j.message||j.mensagem||j.erro)) return j.message||j.mensagem||j.erro;
+  if(typeof j==='string'&&j) return j;
+  return t&&t.length<200?t:('O Secullum respondeu '+r.status+'.');
+}
+async function secJson(metodo,rota,corpo){
+  const r=await sec(metodo,rota,corpo);
+  if(!r.ok) throw new Error(await msgErro(r));
+  const t=await r.text(); if(!t) return null;
+  try{ return JSON.parse(t); }catch(e){ return t; }
+}
+/* PDF, comprovante e arquivo do RH. No navegador vira download; no APK a
+   WebView não baixa blob, então os bytes vão pela ponte pro leitor do Android. */
+async function secArquivo(rota,nome){
+  toast('Baixando…');
+  const r=await sec('GET',rota);
+  if(!r.ok) throw new Error(await msgErro(r));
+  abrirBlob(await r.blob(),nome);
+}
+function abrirBlob(blob,nome){
+  if(typeof AndroidAlarme!=='undefined'&&typeof AndroidAlarme.abrirArquivo==='function'){
+    const fr=new FileReader();
+    fr.onload=()=>AndroidAlarme.abrirArquivo(nome,String(fr.result).split(',')[1]||'',blob.type||'');
+    fr.readAsDataURL(blob); return;
+  }
+  const url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download=nome; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+const extDe=(mime)=>/pdf/.test(mime)?'.pdf':/png/.test(mime)?'.png':/jpe?g/.test(mime)?'.jpg':/html/.test(mime)?'.html':/text/.test(mime)?'.txt':'';
+async function tentar(fn,okMsg){
+  try{ await fn(); if(okMsg) toast(okMsg); return true; }
+  catch(e){ toast(e.message||String(e)); return false; }
+}
+
+/* ---------- sheet genérica ---------- */
+function abrirSheetX(html){ $('#sheetXBox').innerHTML=html; $('#sheetX').classList.remove('hidden'); }
+function fecharSheetX(){ $('#sheetX').classList.add('hidden'); $('#sheetXBox').innerHTML=''; fecharCamera(); }
+// botão que trava enquanto a chamada roda: evita mandar duas vezes a mesma coisa
+async function comBotao(btn,fn){
+  if(!btn||btn.disabled) return;
+  const txt=btn.textContent; btn.disabled=true; btn.textContent='Enviando…';
+  try{ await fn(); } finally{ if(btn.isConnected){ btn.disabled=false; btn.textContent=txt; } }
+}
+
+/* ---------- aparelho: localização, endereço e câmera ---------- */
+function idDispositivo(){
+  if(!S.dispositivoId){
+    S.dispositivoId=(crypto.randomUUID?crypto.randomUUID():Date.now().toString(16)+Math.random().toString(16).slice(2));
+    save();
+  }
+  return S.dispositivoId;
+}
+function posicaoAtual(){
+  return new Promise((ok,falha)=>{
+    if(!navigator.geolocation) return falha(new Error('Este aparelho não informa a localização.'));
+    navigator.geolocation.getCurrentPosition(
+      p=>ok({latitude:p.coords.latitude,longitude:p.coords.longitude,precisao:p.coords.accuracy}),
+      e=>falha(new Error(e.code===1?'Localização negada — libere a permissão de localização do app.'
+        :'Não consegui a localização ('+(e.message||e.code)+'). Ligue o GPS e tente de novo.')),
+      {enableHighAccuracy:true,timeout:25000,maximumAge:0});
+  });
+}
+// mesmo serviço que o app oficial usa; sem ele o campo vai vazio, que o Secullum aceita
+async function enderecoDe(c){
+  try{
+    const r=await api(`/me/endereco?lat=${c.latitude}&lng=${c.longitude}`);
+    if(!r.ok) return null;
+    const j=await r.json();
+    return (j&&(j.endereco||j.Endereco))||null;
+  }catch(e){ return null; }
+}
+let camStream=null;
+async function ligarCamera(video,frontal=true){
+  fecharCamera();
+  camStream=await navigator.mediaDevices.getUserMedia({audio:false,
+    video:{facingMode:frontal?'user':'environment',width:{ideal:720}}});
+  video.srcObject=camStream; await video.play();
+}
+function fecharCamera(){ if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; } }
+// o app oficial manda JPEG em base64 sem o prefixo data:, comprimido pela metade
+function quadroJpeg(fonte,largura,altura){
+  const k=Math.min(1,1024/Math.max(largura,altura));
+  const c=document.createElement('canvas'); c.width=Math.round(largura*k); c.height=Math.round(altura*k);
+  c.getContext('2d').drawImage(fonte,0,0,c.width,c.height);
+  return c.toDataURL('image/jpeg',.5).split(',')[1];
+}
+function fotografar(video){ return quadroJpeg(video,video.videoWidth||640,video.videoHeight||480); }
+function jpegDeArquivo(file){
+  return new Promise((ok,falha)=>{
+    if(!file) return falha(new Error('Nenhuma imagem escolhida.'));
+    const img=new Image(), url=URL.createObjectURL(file);
+    img.onload=()=>{ URL.revokeObjectURL(url); ok(quadroJpeg(img,img.naturalWidth,img.naturalHeight)); };
+    img.onerror=()=>{ URL.revokeObjectURL(url); falha(new Error('Não consegui ler essa imagem.')); };
+    img.src=url;
+  });
+}
+
+/* ---------- perímetro: a mesma conta do validarBatidaDentroPerimetro ----------
+   O app oficial avisa o Secullum quando a batida sai da cerca da empresa. Sem
+   repetir a conta, o PontoImp mandaria sempre "dentro" e furaria o controle. */
+function distanciaM(a,b){
+  const R=6371000, rad=(x)=>x*Math.PI/180;
+  const dLat=rad(b.lat-a.lat), dLng=rad(b.lng-a.lng);
+  const h=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+function dentroDoPerimetro(lat,lng,perimetros){
+  return (perimetros||[]).some(p=>{
+    const cs=(p&&p.coordenadas)||[];
+    if(p.circulo&&p.radius) return cs[0]?distanciaM({lat,lng},cs[0])<=p.radius:false;
+    let dentro=false;   // ponto no polígono, por paridade de cruzamentos
+    for(let i=0,j=cs.length-1;i<cs.length;j=i++){
+      const a=cs[i], b=cs[j];
+      if((a.lng>lng)!==(b.lng>lng) && lat<(b.lat-a.lat)*(lng-a.lng)/(b.lng-a.lng)+a.lat) dentro=!dentro;
+    }
+    return dentro;
+  });
+}
+
+/* =====================================================================
+   REGISTRAR PONTO — o "bater ponto" do app oficial (POST /IncluirPonto)
+   A hora é do servidor: o corpo não leva dataHora, então não há como
+   registrar outro horário daqui. Localização é a real do aparelho.
+   ===================================================================== */
+let regPonto=null;
+function botaoRegistrar(){
+  if(!S.func.podeManual) return '';
+  return `<button class="btn regGrande" onclick="abrirRegistrarPonto()">🕘 Registrar ponto</button>`;
+}
+async function abrirRegistrarPonto(){
+  regPonto={info:null,coords:null,endereco:null,foto:null,erroGps:null,pronto:false};
+  desenharRegistro();
+  // as duas consultas não dependem uma da outra
+  const pInfo=secJson('GET','/IncluirPonto').then(i=>{ regPonto&&(regPonto.info=i||{}); })
+    .catch(()=>{ regPonto&&(regPonto.info={}); });
+  const pGps=posicaoAtual().then(async c=>{ if(!regPonto) return;
+      regPonto.coords=c; desenharRegistro(); regPonto.endereco=await enderecoDe(c); })
+    .catch(e=>{ regPonto&&(regPonto.erroGps=e.message); });
+  await Promise.all([pInfo,pGps]);
+  if(!regPonto) return;
+  regPonto.pronto=true; desenharRegistro();
+  if(exigeFoto()) ligarCameraRegistro();
+}
+// a exigência pode vir na consulta da inclusão ou no cadastro do funcionário
+function cfgInclusao(){
+  const i=(regPonto&&regPonto.info)||{};
+  return {...((S.perfil&&S.perfil.configuracoesIncluirPontoOffline)||{}),...(i.configuracoesIncluirPontoOffline||{}),...i};
+}
+function exigeFoto(){ return !!cfgInclusao().exigirCapturaFotoPonto; }
+function semGpsPermitido(){ const c=cfgInclusao();
+  return !!(c.permiteInclusaoPontoSemLocalizacao??(S.perfil&&S.perfil.permiteInclusaoPontoSemLocalizacao)); }
+function situacaoPerimetro(){
+  const c=cfgInclusao(), per=c.perimetrosAutorizados;
+  if(!regPonto.coords||!Array.isArray(per)||!per.length) return {fora:false,bloqueia:false};
+  const fora=!dentroDoPerimetro(regPonto.coords.latitude,regPonto.coords.longitude,per);
+  return {fora, bloqueia:fora&&!!c.somentePerimetrosAutorizados};
+}
+function desenharRegistro(){
+  if(!regPonto) return;
+  const r=regPonto, foto=exigeFoto(), per=r.pronto?situacaoPerimetro():{fora:false,bloqueia:false};
+  const gps=r.coords
+    ? `📍 ${r.endereco?esc(r.endereco):r.coords.latitude.toFixed(5)+', '+r.coords.longitude.toFixed(5)} <small>(±${Math.round(r.coords.precisao)} m)</small>`
+    : r.erroGps?`<span style="color:var(--warn)">⚠️ ${esc(r.erroGps)}</span>`:'📍 buscando sua localização…';
+  const podeSemGps=semGpsPermitido();
+  const bloqueado=!r.pronto||(!r.coords&&!podeSemGps)||(foto&&!r.foto)||per.bloqueia;
+  abrirSheetX(`<h3 style="margin:0 0 6px">🕘 Registrar ponto</h3>
+    <p class="muted" style="margin:0 0 12px;font-size:13px">Registra agora, na hora do servidor do Secullum.</p>
+    <div class="clock"><div class="t" style="font-size:40px">${nowHM()}</div></div>
+    <p style="font-size:13px;margin:8px 0">${gps}</p>
+    ${per.fora?`<p class="pill ${per.bloqueia?'bad':'warn'}" style="white-space:normal">${per.bloqueia
+      ?'Você está fora do perímetro autorizado pela empresa — o registro não é aceito daqui.'
+      :'Fora do perímetro da empresa: o registro vai, mas o Secullum marca pra o gestor revisar.'}</p>`:''}
+    ${(!r.coords&&r.erroGps&&!podeSemGps)?'<p class="muted" style="font-size:12px">Sua empresa exige localização pra registrar.</p>':''}
+    ${foto?`<div class="camBox">${r.foto?`<img src="data:image/jpeg;base64,${r.foto}" alt="">`:'<video id="regVideo" playsinline muted></video>'}</div>
+      <div class="row2" style="margin-bottom:10px">
+        ${r.foto?'<button class="btn ghost sm" style="width:100%" onclick="refazerFotoRegistro()">Tirar outra</button>'
+          :'<button class="btn ghost sm" style="width:100%" onclick="fotoRegistro()">📸 Fotografar</button>'}
+        <label class="btn ghost sm" style="width:100%;text-align:center">🖼️ Da galeria
+          <input type="file" accept="image/*" capture="user" hidden onchange="fotoArquivoRegistro(this.files[0])"></label>
+      </div>
+      <p class="muted" style="font-size:12px;margin:0 0 10px">A empresa onde você trabalha pede uma foto junto do registro.</p>`:''}
+    <button class="btn" id="regBtn" ${bloqueado?'disabled style="opacity:.55"':''} onclick="confirmarRegistroPonto(this)">${r.pronto?'Registrar agora':'Preparando…'}</button>`);
+  if(foto&&!r.foto&&camStream){ const v=$('#regVideo'); if(v){ v.srcObject=camStream; v.play().catch(()=>{}); } }
+}
+async function ligarCameraRegistro(){
+  const v=$('#regVideo'); if(!v) return;
+  const tipo=cfgInclusao().tipoCameraCapturaFotoPonto;
+  try{ await ligarCamera(v, tipo!==2&&tipo!=='Traseira'); }
+  catch(e){ toast('Câmera indisponível — escolha uma foto da galeria.'); }
+}
+function fotoRegistro(){ const v=$('#regVideo'); if(!v||!camStream) return ligarCameraRegistro();
+  regPonto.foto=fotografar(v); fecharCamera(); desenharRegistro(); }
+function refazerFotoRegistro(){ regPonto.foto=null; desenharRegistro(); ligarCameraRegistro(); }
+async function fotoArquivoRegistro(f){ try{ regPonto.foto=await jpegDeArquivo(f); fecharCamera(); desenharRegistro(); }catch(e){ toast(e.message); } }
+async function confirmarRegistroPonto(btn){
+  const r=regPonto; if(!r||!r.pronto) return;
+  const per=situacaoPerimetro();
+  await comBotao(btn,async()=>{
+    // formato do incluirPonto online do app oficial; sem dataHora = hora do servidor
+    const corpo={ justificativa:null,
+      latitude:r.coords?r.coords.latitude:null, longitude:r.coords?r.coords.longitude:null,
+      precisao:r.coords?r.coords.precisao:null, endereco:r.endereco,
+      foto:r.foto||null, marcacaoOffline:false, viaCentralWeb:false,
+      identificacaoDispositivo:idDispositivo(), foraDoPerimetro:per.fora,
+      utilizaLocalizacaoFicticia:false, horaFoiModificada:false, fusoFoiModificado:false, atividadeId:null };
+    const ok=await tentar(()=>secJson('POST','/IncluirPonto?funcionarioId={funcionarioId}',corpo));
+    if(!ok) return;
+    regPonto=null; fecharSheetX();
+    toast('✓ Ponto registrado às '+nowHM()+'.');
+    await sincronizar(false);
+  });
+}
+
+/* =====================================================================
+   MAIS — as telas do menu do app oficial, com as mesmas regras de exibição
+   (retornarTelas/verificarExibirTela): some o que a empresa ocultou.
+   ===================================================================== */
+let sub=null;          // tela aberta dentro do Mais
+const M={};            // dados carregados de cada tela
+const P=()=>S.perfil||{};
+const DPF=()=>P().dadosPerfilFuncionario||{};
+const ehGestor=()=>DPF().tipoPerfil===1||P().perfil===1;
+// sem perfil carregado ainda, mostramos tudo: o Secullum recusa o que não for permitido
+function telaVisivel(nome){ return !(DPF().telasOcultar||[]).includes(nome); }
+function temFuncionalidade(n){ const f=P().funcionalidades; return !Array.isArray(f)||f.includes(n); }
+const flag=(k)=>S.perfil?!!S.perfil[k]:true;
+
+function itensMenu(){
+  const pessoais=[
+    ['indic','📊','Indicadores',telaVisivel('Indicadores')&&DPF().tipoPerfil!==2],
+    ['cartao','🗓️','Cartão ponto',telaVisivel('CartaoPonto')],
+    ['registrar','🕘','Registrar ponto',telaVisivel('IncluirPonto')&&S.func.podeManual],
+    ['ausencia','🩺','Justificar ausência',telaVisivel('JustificarAusencia')],
+    ['solic','📨','Solicitações',telaVisivel('Solicitacoes')],
+    ['inc','⚠️','Inconsistências',telaVisivel('Inconsistencias')],
+    ['assin','✍️','Assinatura do cartão',telaVisivel('AssinaturaDigitalCartaoPonto')&&flag('assinaturaDigitalCartaoPontoHabilitada')],
+    ['ferias','🏖️','Férias',telaVisivel('Ferias')&&temFuncionalidade(1)],
+    ['arquivos','📁','Arquivos',telaVisivel('Arquivos')&&temFuncionalidade(0)],
+    ['notif','🔔','Notificações',true],
+  ];
+  const gerais=[
+    ['dados','👤','Dados cadastrais',telaVisivel('DadosCadastrais')],
+    ['senha','🔑','Alterar senha',telaVisivel('AlterarSenha')],
+    ['prefs','📧','Preferências do Secullum',telaVisivel('Configuracoes')],
+    ['ajuda','🛟','Ajuda',telaVisivel('Ajuda')],
+    ['lgpd','📜','Termo LGPD',true],
+    ['conta','🗑️','Excluir conta',true],
+  ];
+  const gestor=!ehGestor()?[]:[
+    ['gIndic','📈','Indicadores da equipe',telaVisivel('IndicadoresGerente')],
+    ['gCartao','🗂️','Cartão de funcionário',telaVisivel('CartaoPontoGerente')],
+    ['gDiario','👥','Ponto diário',telaVisivel('PontoDiario')],
+    ['gSolic','✅','Solicitações da equipe',telaVisivel('SolicitacoesGerente')],
+    ['gAssin','🖊️','Assinaturas da equipe',telaVisivel('AssinaturaDigitalCartaoPontoGerente')&&flag('assinaturaDigitalGerentes')],
+  ];
+  return {pessoais:pessoais.filter(i=>i[3]),gerais:gerais.filter(i=>i[3]),gestor:gestor.filter(i=>i[3])};
+}
+function abrirTela(s){
+  if(s==='registrar') return abrirRegistrarPonto();
+  if(s==='inc'){ go('hoje'); return carregarInconsistencias(); }   // pendências já vivem na aba Hoje
+  view='mais'; sub=s; M[s]=M[s]||{}; render(); window.scrollTo(0,0);
+  if(TELAS[s].carregar) recarregar(s);
+}
+async function recarregar(s){
+  const st=M[s]; st.carregando=true; st.erro=null; if(view==='mais'&&sub===s) render();
+  try{ await TELAS[s].carregar(st); }catch(e){ st.erro=e.message||String(e); }
+  st.carregando=false; if(view==='mais'&&sub===s) render();
+}
+function viewMais(){
+  const wrap=el('<div class="cards"></div>');
+  if(sub&&TELAS[sub]){
+    wrap.appendChild(el(`<button class="voltar" onclick="go('mais')">← ${esc(TELAS[sub].titulo)}</button>`));
+    wrap.appendChild(el(`<div class="card">${TELAS[sub].render(M[sub])}</div>`));
+    return wrap;
+  }
+  const {pessoais,gerais,gestor}=itensMenu();
+  const grade=(lista)=>`<div class="menuGrid">${lista.map(([k,ic,nome])=>
+    `<button onclick="abrirTela('${k}')"><i>${ic}</i>${nome}</button>`).join('')}</div>`;
+  if(gestor.length) wrap.appendChild(el(`<div class="card"><h3>Dados gerenciais</h3>${grade(gestor)}</div>`));
+  wrap.appendChild(el(`<div class="card"><h3>Dados pessoais</h3>${grade(pessoais)}</div>`));
+  wrap.appendChild(el(`<div class="card"><h3>Conta</h3>${grade(gerais)}</div>`));
+  return wrap;
+}
+const carga=(st)=>st.carregando?'<p class="muted" style="margin:0 0 10px">Carregando do Secullum…</p>'
+  :st.erro?`<p style="color:var(--warn);margin:0 0 10px">⚠️ ${esc(st.erro)}</p>`:'';
+const vazio=(st,txt)=>(!st.carregando&&!st.erro)?`<p class="muted" style="margin:0">${txt}</p>`:'';
+function filtroPeriodo(s,st){
+  return `<div class="filtros" style="margin-bottom:12px">
+    <div class="field"><label>De</label><input type="date" id="f_ini" value="${st.ini}"></div>
+    <div class="field"><label>Até</label><input type="date" id="f_fim" value="${st.fim}"></div>
+    <button class="btn sm" onclick="M['${s}'].ini=$('#f_ini').value;M['${s}'].fim=$('#f_fim').value;recarregar('${s}')">Buscar</button>
+  </div>`;
+}
+function filtroStatus(s,st,opcoes){
+  return `<div class="field"><label>Mostrar</label><select onchange="M['${s}'].status=+this.value;recarregar('${s}')">
+    ${opcoes.map(([v,n])=>`<option value="${v}" ${st.status===v?'selected':''}>${n}</option>`).join('')}</select></div>`;
+}
+// coordenada pra assinatura: o app oficial manda a posição junto do aceite
+async function coordsAssinatura(){
+  try{ const c=await posicaoAtual(); return {...c, endereco:await enderecoDe(c)}; }
+  catch(e){ return {latitude:null,longitude:null,precisao:null,endereco:null}; }
+}
+function pedirSenhaOuMotivo({titulo,texto,rotulo,tipo='text',acao}){
+  abrirSheetX(`<h3 style="margin:0 0 6px">${titulo}</h3>
+    <p class="muted" style="margin:0 0 14px;font-size:13px">${texto}</p>
+    <div class="field"><label>${rotulo}</label><input id="sx_val" type="${tipo}" autocomplete="off"></div>
+    <button class="btn" onclick="comBotao(this,()=>(${acao})($('#sx_val').value))">Confirmar</button>`);
+  setTimeout(()=>$('#sx_val')&&$('#sx_val').focus(),50);
+}
+// o app confere a senha antes de mandar; aqui só dá pra conferir se ela ficou salva
+function senhaConfere(v){
+  if(!v) return toast('Digite sua senha.'),false;
+  let salva=''; try{ salva=S.auth.senha?atob(S.auth.senha):''; }catch(e){}
+  if(salva&&v!==salva) return toast('Senha inválida.'),false;
+  return true;
+}
+
+/* ---------- telas ---------- */
+const STATUS_SOLIC={0:['Aguardando retorno','warn'],1:['Aceito','ok'],2:['Rejeitado','bad'],3:['Visto','mut']};
+const STATUS_ASSIN={0:['Pendente','warn'],1:['Aprovado','ok'],2:['Rejeitado','bad'],3:['Aguardando gestores','mut']};
+const hDec=(y)=>{ const m=Math.round(Math.abs(+y||0)*60); return (y<0?'−':'')+hm(m); };
+
+function linhaCartao(d,{comprovante=true}={}){
+  const sit={0:'✅',1:'⚠️',2:'⛔'}[d.situacao]||'';
+  const bats=(d.batidas||[]).filter(b=>b&&(b.valor||b.nome));
+  const chips=bats.map((b,i)=>{
+    const mudou=b.valorOriginal!=null&&b.valorOriginal!==b.valor;
+    const geo=b.geolocalizacao&&b.geolocalizacao.latitude!=null
+      ?`<a href="https://maps.google.com/?q=${b.geolocalizacao.latitude},${b.geolocalizacao.longitude}" target="_blank" title="${esc(b.geolocalizacao.endereco||'Endereço não disponível')}">📍</a>`:'';
+    const comp=(comprovante&&b.ehRepP&&b.valor&&d.id!=null)
+      ?` <a href="#" onclick="event.preventDefault();comprovanteBatida(${+d.id},'${encodeURIComponent(b.nome||'').replace(/'/g,'%27')}')" title="Comprovante">🧾</a>`:'';
+    return `<div class="chip"><small>${esc(b.nome||('Batida '+(i+1)))}${mudou?' ✏️':''}</small><b>${esc(b.valor||'—')}</b> ${geo}${comp}</div>`;
+  }).join('');
+  const vals=(d.valores||[]).filter(v=>v&&v.valor).map(v=>
+    `<div class="detLinha"><span>${esc(v.nome)}</span><b>${esc(v.valor)}</b></div>`).join('');
+  const saldo=d.saldo&&!['+00:00','00,00','00:00'].includes(d.saldo)?`<span class="pill ${String(d.saldo).startsWith('-')?'warn':'bad'}">${esc(d.saldo)}</span>`:'';
+  const dt=String(d.data||'').slice(0,10), dia=dt?new Date(dt+'T12:00:00'):null;
+  return `<div class="dia">
+    <div class="diaHead"><b style="${dia&&dia.getDay()===0?'color:var(--bad)':''}">${d.funcionarioNome?esc(d.funcionarioNome)+' · ':''}${dia?['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][dia.getDay()]+' '+dataSec(dt):'—'}${d.feriado?' - Fer':''}</b>
+      <span style="margin-left:6px">${sit}${d.registroPendente?' ⏳':''}</span><span style="flex:1"></span>${saldo}</div>
+    ${chips?`<div class="batChips">${chips}</div>`:''}
+    ${d.registroPendente?'<p class="muted" style="font-size:12px;margin:6px 0 0">Existem inclusões de ponto em processamento neste dia.</p>':''}
+    ${d.existePeriodoEncerrado?'<p class="muted" style="font-size:12px;margin:6px 0 0">Período encerrado — não dá mais pra ajustar nem justificar.</p>':''}
+    ${vals?`<div class="detDia">${vals}</div>`:''}
+  </div>`;
+}
+function comprovanteBatida(id,nome){
+  // o nome já chega codificado pra URL (é seguro dentro do onclick)
+  tentar(()=>secArquivo(`/Batidas/Comprovante?axpw={axpw}&batidaId=${id}&nome=${nome}`,`comprovante-${id}.pdf`));
+}
+function totaisCartao(d){
+  const t=(d&&d.totais)||[];
+  return t.length?`<div class="metaSub" style="margin:0 0 8px;border:0;padding:0">${t.filter(x=>x&&x.valor)
+    .map(x=>`<span>${esc(x.nome)} <b>${esc(x.valor)}</b></span>`).join('')}</div>`:'';
+}
+/* PDF do cartão: o app grava as opções e depois abre o relatório pela URL
+   com axpw. As colunas seguem o montarColunasImpressao: pares de batida e
+   as colunas de cálculo que vieram no espelho. */
+async function imprimirCartao(ini,fim,dados,fid){
+  const l=(dados&&dados.lista)||[];
+  const pares=Math.max(1,Math.ceil(Math.max(0,...l.map(d=>(d.batidas||[]).length))/2));
+  const colunas=[];
+  for(let i=1;i<=pares;i++) colunas.push('Entrada '+i,'Saída '+i);
+  ((l[0]&&l[0].valores)||[]).forEach(v=>v&&v.nome&&colunas.push(v.nome));
+  const id=fid||S.func.id;
+  await secJson('POST','/RelatorioCartaoPonto',{ exibirEventos:false, exibirMiniaturaDoHorario:false,
+    exibirTermosMTB:false, exibirTotaisNoRodape:false, modoPaisagem:false, exibirJustificativas:false,
+    exibirJustificativasInclusaoPonto:false, justificativasPreenchidasUsuario:false,
+    exibirLegendasJustificativas:false, exibirAtividades:false,
+    ...((dados&&dados.opcoesCartaoPonto)||{}), colunasSelecionadasImpressao:colunas, funcionarioId:id });
+  await secArquivo(`/RelatorioCartaoPonto?axpw={axpw}&dataInicio=${ini}&dataFim=${fim}&funcionarioId=${fid?fid:'{funcionarioId}'}`,
+    `cartao-ponto-${ini}-${fim}.pdf`);
+}
+function telaCartao(s,st,{gestor=false}={}){
+  const funcs=gestor?`<div class="field"><label>Funcionário</label><select onchange="M['${s}'].fid=+this.value;recarregar('${s}')">
+    <option value="">— escolha —</option>${(st.funcs||[]).map(f=>`<option value="${f.id}" ${st.fid===f.id?'selected':''}>${esc(f.nome)}</option>`).join('')}</select></div>`:'';
+  const l=(st.dados&&st.dados.lista)||[];
+  return `${funcs}${filtroPeriodo(s,st)}${carga(st)}
+    ${st.dados?`${totaisCartao(st.dados)}
+      <button class="btn ghost sm" style="width:100%;margin-bottom:6px" onclick="tentar(()=>imprimirCartao(M['${s}'].ini,M['${s}'].fim,M['${s}'].dados${gestor?`,M['${s}'].fid`:''}))">📄 Cartão em PDF</button>
+      ${l.length?l.map(d=>linhaCartao(d,{comprovante:!gestor})).join(''):vazio(st,'Nenhum dia no período.')}`
+      :(gestor&&!st.fid?vazio(st,'Escolha um funcionário.'):'')}`;
+}
+function cardHoras(nome,v,{positivo=true}={}){
+  const dia=(v&&v.dia&&v.dia.valores)||[];
+  const total=dia.reduce((a,x)=>a+(+x.y||0),0);
+  return `<div class="metaBar" style="margin-bottom:10px">
+    <div class="top"><div class="kpi"><span class="v" style="font-size:24px;color:${total===0?'var(--txt)':(total>0)===positivo?'var(--ok)':'var(--warn)'}">${hDec(total)}</span>
+      <span class="l">${esc(nome)} no período</span></div></div>
+    ${dia.length?`<div class="metaSub">${dia.map(x=>`<span>${esc(x.x)} <b>${hDec(x.y)}</b></span>`).join('')}</div>`:''}
+  </div>`;
+}
+
+const TELAS={
+  /* ----- Indicadores: GET /Indicadores/ListaHoras/{ini}/{fim} ----- */
+  indic:{ titulo:'Indicadores',
+    async carregar(st){ st.ini=st.ini||diasAtras(9); st.fim=st.fim||hojeStr();
+      st.dados=await secJson('GET',`/Indicadores/ListaHoras/${st.ini}/${st.fim}`); },
+    render(st){ const d=st.dados||{}, oc=DPF().colunasOcultar||[];
+      const pers=(d.personalizados||[]);
+      return `${filtroPeriodo('indic',st)}${carga(st)}
+        ${st.dados?`${(flag('bancoHorasHabilitado')&&!oc.includes('BSaldo'))?cardHoras('Banco de horas',d.saldo):''}
+          ${!oc.includes('Extras')?cardHoras('Horas extras',d.extras):''}
+          ${!oc.includes('Faltas')?cardHoras('Horas faltantes',d.faltas,{positivo:false}):''}
+          ${pers.map(p=>`<div style="position:relative">${cardHoras((p.indicador&&p.indicador.titulo)||p.nomeColunaIndicador,p.dadosIndicador)}
+            <button class="btn ghost sm" style="position:absolute;top:8px;right:8px;width:auto;padding:4px 9px;color:var(--bad)"
+              onclick="excluirIndicador(${+(p.indicador&&p.indicador.id)})">✕</button></div>`).join('')}`:''}
+        <button class="btn ghost sm" style="width:100%" onclick="novoIndicador()">＋ Indicador personalizado</button>`; } },
+
+  /* ----- Cartão ponto: GET /Batidas/{ini}/{fim} ----- */
+  cartao:{ titulo:'Cartão ponto',
+    async carregar(st){ st.ini=st.ini||diasAtras(14); st.fim=st.fim||hojeStr();
+      st.dados=await secJson('GET',`/Batidas/${st.ini}/${st.fim}`); },
+    render(st){ return telaCartao('cartao',st); } },
+
+  /* ----- Solicitações: GET /Solicitacoes/{ini}/{fim}/{status}/0/0 ----- */
+  solic:{ titulo:'Solicitações',
+    async carregar(st){ st.ini=st.ini||diasAtras(30); st.fim=st.fim||hojeStr(); st.status=st.status??2;
+      const l=await secJson('GET',`/Solicitacoes/${st.ini}/${st.fim}/${st.status}/0/0`);
+      st.lista=Array.isArray(l)?l:[]; },
+    render(st){ return `${filtroStatus('solic',st,[[2,'Pendentes'],[1,'Processadas'],[0,'Todas']])}
+      ${filtroPeriodo('solic',st)}${carga(st)}
+      ${(st.lista||[]).length?st.lista.map(x=>itemSolicitacao(x,false)).join(''):vazio(st,'Nenhuma solicitação no período.')}`; } },
+
+  /* ----- Justificar ausência: POST /Solicitacoes ou /Solicitacoes/Afastamento ----- */
+  ausencia:{ titulo:'Justificar ausência',
+    async carregar(st){ st.data=st.data||hojeStr(); st.modo=st.modo||'dia'; st.tipo=st.tipo??2;
+      st.ini=st.ini||hojeStr(); st.fim=st.fim||hojeStr();
+      const j=await secJson('GET','/Justificativas'); st.justs=Array.isArray(j)?j:[]; },
+    render(st){ const j=(st.justs||[]).find(x=>String(x.id)===String(st.jid));
+      const exigeFoto=j&&(j.exigirFotoAtestado||j.enviarImagem);
+      const per=[[2,'Dia inteiro'],[3,'Período 1'],[4,'Período 2'],[5,'Período 3'],
+        ...(P().usaPonto10Batidas?[[12,'Período 4'],[13,'Período 5']]:[]),[1,'Horário específico']];
+      return `${carga(st)}
+      <div class="field"><label>Ausência em</label><select onchange="M.ausencia.modo=this.value;render()">
+        <option value="dia" ${st.modo==='dia'?'selected':''}>Um dia</option>
+        <option value="afast" ${st.modo==='afast'?'selected':''}>Período de afastamento</option></select></div>
+      ${st.modo==='dia'?`<div class="row2"><div class="field"><label>Dia</label><input type="date" value="${st.data}" onchange="M.ausencia.data=this.value"></div>
+        <div class="field"><label>Período da ausência</label><select onchange="M.ausencia.tipo=+this.value;render()">
+          ${per.map(([v,n])=>`<option value="${v}" ${st.tipo===v?'selected':''}>${n}</option>`).join('')}</select></div></div>
+        ${st.tipo===1?`<div class="row2"><div class="field"><label>Início</label><input type="time" value="${st.hIni||''}" onchange="M.ausencia.hIni=this.value"></div>
+          <div class="field"><label>Fim</label><input type="time" value="${st.hFim||''}" onchange="M.ausencia.hFim=this.value"></div></div>`:''}`
+      :`<div class="row2"><div class="field"><label>De</label><input type="date" value="${st.ini}" onchange="M.ausencia.ini=this.value"></div>
+        <div class="field"><label>Até</label><input type="date" value="${st.fim}" onchange="M.ausencia.fim=this.value"></div></div>`}
+      <div class="field"><label>Motivo</label><select onchange="M.ausencia.jid=this.value;M.ausencia.foto=null;render()">
+        <option value="">— escolha —</option>${(st.justs||[]).map(x=>`<option value="${x.id}" ${String(st.jid)===String(x.id)?'selected':''}>${esc(x.descricao||x.nome||x.nomeCompleto||x.id)}</option>`).join('')}</select></div>
+      <div class="field"><label>Observação</label><input maxlength="${st.modo==='afast'?100:1000}" value="${esc(st.obs||'')}" oninput="M.ausencia.obs=this.value"></div>
+      ${exigeFoto?`<div class="field"><label>Foto do atestado</label>
+        <input type="file" accept="image/*" capture="environment" onchange="jpegDeArquivo(this.files[0]).then(f=>{M.ausencia.foto=f;toast('Foto anexada.')}).catch(e=>toast(e.message))">
+        ${st.foto?'<small class="muted">✓ foto anexada</small>':''}</div>`:''}
+      <button class="btn" onclick="comBotao(this,enviarAusencia)">Enviar justificativa</button>
+      <p class="muted" style="font-size:12px;margin:10px 0 0">Vai como solicitação pro seu gestor aprovar.</p>`; } },
+
+  /* ----- Férias: GET /ControleFerias/Saldo ----- */
+  ferias:{ titulo:'Férias',
+    async carregar(st){ st.dados=await secJson('GET','/ControleFerias/Saldo'); },
+    render(st){ const d=st.dados||{}, mov=d.movimentacoes||[];
+      return `${carga(st)}
+      ${st.dados?`<div class="metaBar"><div class="kpi"><span class="v" style="color:${d.saldo<0?'var(--bad)':'var(--txt)'}">${d.saldo<0?'−':''}${Math.abs(+d.saldo||0)} dias</span>
+        <span class="l">saldo de férias</span></div></div>
+        ${mov.map(m=>`<div class="detLinha"><span>${dataSec(m.data)}${m.dataFim?' a '+dataSec(m.dataFim):''} · ${esc(m.descricaoMovimentacao)}</span><b>${esc(m.dias)}</b></div>`).join('')}`:''}
+      <div class="acoes2"><button class="btn sm" onclick="formFerias()">🏖️ Solicitar férias</button>
+        <button class="btn ghost sm" onclick="formVendaFerias()">💰 Vender férias</button></div>`; } },
+
+  /* ----- Assinatura digital do cartão ----- */
+  assin:{ titulo:'Assinatura do cartão',
+    async carregar(st){ st.ini=st.ini||diasAtras(365); st.fim=st.fim||hojeStr(); st.status=st.status??2;
+      const l=await secJson('GET',`/AssinaturaDigitalCartaoPonto/${st.ini}/${st.fim}/${st.status}/0`);
+      st.lista=Array.isArray(l)?l:[]; },
+    render(st){ return `${filtroStatus('assin',st,[[2,'Pendentes'],[1,'Processadas'],[0,'Todas']])}
+      ${filtroPeriodo('assin',st)}${carga(st)}
+      ${(st.lista||[]).length?st.lista.map((a,i)=>itemAssinatura(a,i,false)).join(''):vazio(st,'Nenhum cartão pra assinar.')}`; } },
+
+  /* ----- Arquivos do RH ----- */
+  arquivos:{ titulo:'Arquivos',
+    async carregar(st){ st.ini=st.ini||diasAtras(365); st.fim=st.fim||hojeStr();
+      const l=await secJson('GET',`/RepositorioArquivo/{funcionarioId}/${st.ini}/${st.fim}`);
+      st.lista=Array.isArray(l)?l:[]; },
+    render(st){ return `${filtroPeriodo('arquivos',st)}${carga(st)}
+      ${(st.lista||[]).length?st.lista.map(itemArquivo).join(''):vazio(st,'Nenhum arquivo no período.')}`; } },
+
+  /* ----- Notificações: últimos 30 dias ----- */
+  notif:{ titulo:'Notificações',
+    async carregar(st){ const l=await secJson('GET',`/Notificacoes/${diasAtras(30)}/${hojeStr()}`);
+      st.lista=Array.isArray(l)?l:[]; },
+    render(st){ return `${carga(st)}${(st.lista||[]).length?st.lista.map((n,i)=>`<div class="item">
+        <div class="topo"><b>${n.visualizada?'':'🔵 '}${esc(n.mensagem)}</b></div>
+        ${n.detalheMensagem?`<p>${esc(n.detalheMensagem)}</p>`:''}
+        <p>${dataHoraSec(n.dataHora)}</p>
+        <div class="acoes2"><button class="btn ghost sm" onclick="abrirNotificacao(${i})">Abrir</button>
+          <button class="btn ghost sm" onclick="marcarNotificacao(${i})">${n.visualizada?'Marcar como não lida':'Marcar como lida'}</button></div>
+      </div>`).join(''):vazio(st,'Nenhuma notificação nos últimos 30 dias.')}`; } },
+
+  /* ----- Dados cadastrais: vira solicitação pro RH ----- */
+  dados:{ titulo:'Dados cadastrais',
+    async carregar(st){
+      const [c,e]=await Promise.all([secJson('GET','/Funcionarios/DadosAdicionais/{funcionarioId}'),
+        secJson('GET','/Escolaridade').catch(()=>[])]);
+      st.campos={...(c||{})}; st.orig={...(c||{})}; st.escol=Array.isArray(e)?e:[]; },
+    render(st){ if(!st.campos) return carga(st);
+      const c=st.campos, campo=(k,n,t='text')=>`<div class="field"><label>${n}</label><input type="${t}"
+        value="${esc(t==='date'?String(c[k]||'').slice(0,10):c[k])}" onchange="M.dados.campos['${k}']=${t==='date'?"this.value?this.value+'T00:00:00':null":'this.value'}"></div>`;
+      return `${carga(st)}
+      ${P().possuiSolicitacaoAtualizacaoDadosCadastraisPendente?'<p class="pill warn" style="white-space:normal">Já existe uma atualização sua esperando o RH.</p>':''}
+      <div class="cfgGrid">${campo('endereco','Endereço')}${campo('bairro','Bairro')}${campo('cidade','Cidade')}${campo('estado','UF')}
+        ${campo('cep','CEP')}${campo('telefone','Telefone')}${campo('celular','Celular')}${campo('email','E-mail','email')}
+        ${campo('rg','RG')}${campo('expedicaoRg','Expedição do RG','date')}${campo('ssp','Órgão emissor')}${campo('cpf','CPF')}
+        ${campo('pai','Pai')}${campo('mae','Mãe')}${campo('nascimento','Nascimento','date')}${campo('nacionalidade','Nacionalidade')}
+        ${campo('naturalidade','Naturalidade')}
+        <div class="field"><label>Escolaridade</label><select onchange="M.dados.campos.escolaridadeId=+this.value||null">
+          <option value="">—</option>${st.escol.map(e=>`<option value="${e.id}" ${c.escolaridadeId===e.id?'selected':''}>${esc(e.descricao)}</option>`).join('')}</select></div></div>
+      <div class="row2"><div class="field"><label>Foto (opcional)</label><input type="file" accept="image/*" capture="user"
+          onchange="jpegDeArquivo(this.files[0]).then(f=>{M.dados.campos.foto=f;toast('Foto anexada.')}).catch(e=>toast(e.message))"></div>
+        <div class="field"><label>Comprovante de endereço</label><input type="file" accept="image/*"
+          onchange="jpegDeArquivo(this.files[0]).then(f=>{M.dados.campos.comprovanteEndereco=f;toast('Comprovante anexado.')}).catch(e=>toast(e.message))"></div></div>
+      <button class="btn" onclick="comBotao(this,enviarDadosCadastrais)">Enviar pro RH</button>`; } },
+
+  /* ----- Alterar senha: POST /Funcionarios ----- */
+  senha:{ titulo:'Alterar senha',
+    render(){ return `<div class="field"><label>Senha atual</label><input type="password" id="s_atual"></div>
+      <div class="field"><label>Nova senha</label><input type="password" id="s_nova"></div>
+      <div class="field"><label>Confirmar nova senha</label><input type="password" id="s_conf"></div>
+      <button class="btn" onclick="comBotao(this,alterarSenha)">Alterar senha</button>`; } },
+
+  /* ----- Preferências guardadas no Secullum ----- */
+  prefs:{ titulo:'Preferências do Secullum',
+    render(){ const p=P(), notif=S.secNotif||{};
+      const comp=p.usaEnviarEmailComprovantePonto;
+      const recebe=(p.configuracoesEspeciaisAcesso||{}).comprovantes1PorBatida?!!p.receberEmailComprovantePonto:!p.naoReceberEmailComprovantePonto;
+      const nomes=[];
+      for(let i=1;i<=5;i++) nomes.push(['notificacaoEntrada'+i,'Entrada '+i],['notificacaoSaida'+i,'Saída '+i]);
+      return `${comp?`<div class="switchRow"><div class="tx"><b>Comprovante por e-mail</b><small>recebe o comprovante de cada batida${p.email?' em '+esc(p.email):''}</small></div>
+        <div class="toggle ${recebe?'on':''}" onclick="alternarComprovante(!this.classList.contains('on'))"></div></div>`
+        :'<p class="muted" style="font-size:13px">Sua empresa não envia comprovante por e-mail.</p>'}
+      <h3 style="margin:16px 0 8px">Avisos do app oficial por batida</h3>
+      <p class="muted" style="font-size:12px;margin:0 0 10px">Valem pras notificações que o próprio Secullum manda. Os alarmes do PontoImp ficam nos Ajustes.</p>
+      <div class="cfgGrid">${nomes.map(([k,n])=>`<div class="field"><label>${n}</label><select onchange="salvarNotifSecullum('${k}',+this.value)">
+        ${[[0,'Notificar sempre'],[1,'Não notificar'],[2,'Só se eu esquecer']].map(([v,t])=>`<option value="${v}" ${(notif[k]||0)===v?'selected':''}>${t}</option>`).join('')}</select></div>`).join('')}</div>`; } },
+
+  /* ----- Ajuda: abre um chamado no suporte da Secullum ----- */
+  ajuda:{ titulo:'Ajuda',
+    render(){ const p=P(), v=(k,d)=>esc(p[k]||d||'');
+      return `<p class="muted" style="font-size:13px;margin:0 0 12px">Abre um pedido de ajuda no suporte da Secullum, como o app oficial.</p>
+      <div class="cfgGrid"><div class="field"><label>Nome</label><input id="a_nome" value="${v('nome',S.func.nome)}"></div>
+        <div class="field"><label>E-mail</label><input id="a_email" type="email" value="${v('email')}"></div>
+        <div class="field"><label>Celular</label><input id="a_cel" value="${v('celular')}"></div>
+        <div class="field"><label>Cidade</label><input id="a_cid" value="${v('cidade')}"></div>
+        <div class="field"><label>UF</label><input id="a_uf" maxlength="2" value="${v('uf')}"></div></div>
+      <div class="field"><label>Como podemos ajudar?</label><textarea id="a_txt" rows="5" style="width:100%;padding:12px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;color:var(--txt)"></textarea></div>
+      <button class="btn" onclick="comBotao(this,enviarAjuda)">Enviar pedido</button>`; } },
+
+  /* ----- Termo LGPD ----- */
+  lgpd:{ titulo:'Termo LGPD',
+    async carregar(st){ st.txt=await secJson('GET','/TermoLgpd'); },
+    render(st){ const t=typeof st.txt==='string'?st.txt:'';
+      // o termo pode vir em HTML; mostramos só o texto, sem executar nada
+      const limpo=t.replace(/<br\s*\/?>/gi,'\n').replace(/<\/p>/gi,'\n\n').replace(/<[^>]+>/g,'');
+      return `${carga(st)}<div class="termo">${esc(limpo)}</div>
+      ${P().aceitouTermosLgpd?'<p class="pill ok" style="margin-top:12px">✓ Você já aceitou este termo.</p>'
+        :`<button class="btn" style="margin-top:12px" onclick="comBotao(this,aceitarLgpd)">Li e aceito</button>`}`; } },
+
+  /* ----- Excluir conta ----- */
+  conta:{ titulo:'Excluir conta',
+    render(){ return `<p class="muted" style="font-size:13px;margin:0 0 12px">Pede ao Secullum a exclusão do seu acesso ao app. Seus registros de ponto continuam com a empresa, que é obrigada a guardá-los.</p>
+      <div class="switchRow"><div class="tx"><b>Entendo que vou perder o acesso</b></div><div class="toggle" id="c_ciente" onclick="this.classList.toggle('on')"></div></div>
+      <div class="field" style="margin-top:12px"><label>Sua senha</label><input type="password" id="c_senha"></div>
+      <button class="btn" style="background:linear-gradient(135deg,#ff6b81,#ff8f6b)" onclick="comBotao(this,excluirConta)">Excluir minha conta</button>`; } },
+
+  /* ================= GESTOR ================= */
+  gIndic:{ titulo:'Indicadores da equipe',
+    async carregar(st){
+      const [r,t,c]=await Promise.all([secJson('GET','/Indicadores/v2/ResumoDiario'),
+        secJson('GET','/Indicadores/TotalSolicitacoesPendentes').catch(()=>null),
+        secJson('GET','/Indicadores/IndicadoresGerente/').catch(()=>[])]);
+      st.resumo=r||{}; st.pend=t; st.custom=Array.isArray(c)?c:[]; },
+    render(st){ const r=st.resumo||{}, fs=r.funcionarios||[];
+      return `${carga(st)}
+      ${st.pend?`<div class="detLinha"><span>Solicitações pendentes</span><b>${esc(st.pend.quantidade)}</b></div>`:''}
+      ${(r.dados||[]).map(d=>{ const quem=fs.filter(f=>(d.funcionariosIds||[]).includes(f.id));
+        return `<div class="item"><div class="topo"><b>${esc(d.titulo)}</b><span class="pill mut">${quem.length}</span></div>
+          <div class="barra"><span style="width:${Math.min(100,100*(+d.atual||0)/(+d.total||1))}%"></span></div>
+          ${quem.length?`<p>${quem.map(f=>esc(f.nome)+(f.celular?` · <a href="tel:${esc(f.celular)}">${esc(f.celular)}</a>`:'')).join('<br>')}</p>`:''}</div>`; }).join('')}
+      ${st.custom.map(c=>`<div class="item"><div class="topo"><b>${esc((c.indicador&&c.indicador.titulo)||c.nomeColunaIndicador)}</b></div>
+        <p>${(c.funcionarios||[]).map(f=>`${esc(f.nome)} — ${esc(f.totalHorasFuncionario)}`).join('<br>')||'ninguém'}</p></div>`).join('')}`; } },
+  gCartao:{ titulo:'Cartão de funcionário',
+    async carregar(st){ st.ini=st.ini||diasAtras(14); st.fim=st.fim||hojeStr();
+      if(!st.funcs){ const f=await secJson('GET','/Funcionarios/ListarFuncionariosGerente'); st.funcs=Array.isArray(f)?f:[]; }
+      st.dados=st.fid?await secJson('GET',`/Batidas/${st.ini}/${st.fim}/${st.fid}`):null; },
+    render(st){ return telaCartao('gCartao',st,{gestor:true}); } },
+  gDiario:{ titulo:'Ponto diário',
+    async carregar(st){ st.data=st.data||hojeStr(); st.dados=await secJson('GET',`/Batidas/${st.data}`); },
+    render(st){ const l=(st.dados&&st.dados.lista)||[];
+      return `<div class="filtros" style="grid-template-columns:1fr auto;margin-bottom:12px">
+        <div class="field"><label>Dia</label><input type="date" id="f_dia" value="${st.data}"></div>
+        <button class="btn sm" onclick="M.gDiario.data=$('#f_dia').value;recarregar('gDiario')">Buscar</button></div>
+        ${carga(st)}${l.length?l.map(d=>linhaCartao(d,{comprovante:false})).join(''):vazio(st,'Ninguém no dia.')}`; } },
+  gSolic:{ titulo:'Solicitações da equipe',
+    async carregar(st){ st.ini=st.ini||diasAtras(14); st.fim=st.fim||hojeStr(); st.status=st.status??2;
+      const l=await secJson('GET',`/Solicitacoes/${st.ini}/${st.fim}/${st.status}/1/0`);
+      st.lista=Array.isArray(l)?l:[]; },
+    render(st){ return `${filtroStatus('gSolic',st,[[2,'Pendentes'],[1,'Processadas'],[0,'Todas']])}
+      ${filtroPeriodo('gSolic',st)}${carga(st)}
+      ${(st.lista||[]).length?st.lista.map((x,i)=>itemSolicitacao(x,true,i)).join(''):vazio(st,'Nada da equipe no período.')}`; } },
+  gAssin:{ titulo:'Assinaturas da equipe',
+    async carregar(st){ st.ini=st.ini||diasAtras(365); st.fim=st.fim||hojeStr(); st.status=st.status??3;
+      const l=await secJson('GET',`/AssinaturaDigitalCartaoPonto/${st.ini}/${st.fim}/${st.status}/1`);
+      st.lista=Array.isArray(l)?l:[]; },
+    render(st){ return `${filtroStatus('gAssin',st,[[3,'Aguardando você'],[4,'Processadas'],[0,'Todas']])}
+      ${filtroPeriodo('gAssin',st)}${carga(st)}
+      ${(st.lista||[]).length?st.lista.map((a,i)=>itemAssinatura(a,i,true)).join(''):vazio(st,'Nenhuma assinatura esperando.')}`; } },
+};
+
+/* ---------- solicitações ---------- */
+function itemSolicitacao(x,gestor,i){
+  const [st,cls]=STATUS_SOLIC[x.status]||['—','mut'];
+  const mud=(x.batidas||[]).filter(b=>b&&(b.valor||b.valorOriginal)&&b.valor!==b.valorOriginal)
+    .map(b=>`${esc(b.nome)}: ${esc(b.valorOriginal||'—')} → <b>${esc(b.valor||'—')}</b>`).join('<br>');
+  const fotos=x.solicitacaoFotoId?`<button class="btn ghost sm" style="width:auto;padding:4px 10px;margin-top:6px"
+    onclick="tentar(()=>secArquivo('/Solicitacoes/${+x.solicitacaoFotoId}/FotoAtestado?axpw={axpw}&retornarFotoComoArquivo=true','atestado-${+x.id}.jpg'))">📎 ver anexo</button>`:'';
+  const visto=DPF().controleSolicitacoes===1;
+  const acoes=(gestor&&x.status===0)?`<div class="acoes2">${visto
+      ?`<button class="btn sm" onclick="responderSolicitacao(${i},'visto')">👁️ Marcar visto</button><span></span>`
+      :`<button class="btn sm" onclick="responderSolicitacao(${i},'Aceitar')">✓ Aprovar</button>
+        <button class="btn ghost sm" style="color:var(--bad)" onclick="responderSolicitacao(${i},'Descartar')">✕ Reprovar</button>`}</div>`
+    :(gestor&&x.status===3)?`<div class="acoes2"><button class="btn ghost sm" onclick="responderSolicitacao(${i},'desvisto')">Desmarcar visto</button></div>`:'';
+  return `<div class="item"><div class="topo"><b>${esc(x.tipo||'Solicitação')}</b><span class="pill ${cls}">${st}</span></div>
+    <p>${gestor&&x.funcionarioNome?esc(x.funcionarioNome)+' · ':''}${dataSec(x.data)}${x.dataFim?' a '+dataSec(x.dataFim):''}${x.dataSolicitacao?' · pedido em '+dataSec(x.dataSolicitacao):''}</p>
+    ${mud?`<p>${mud}</p>`:''}
+    ${(x.observacao||x.observacoes)?`<p>📝 ${esc(x.observacao||x.observacoes)}</p>`:''}
+    ${x.motivo?`<p>Motivo: ${esc(x.motivo)}</p>`:''}
+    ${x.motivoRejeicao?`<p style="color:var(--bad)">Rejeitado: ${esc(x.motivoRejeicao)}</p>`:''}
+    ${fotos}${acoes}</div>`;
+}
+// retornarEndpointResponderSolicitacao do app oficial
+function rotaResponder(tipo,acao){
+  if(tipo===22) return `/Solicitacoes/${acao}VendaFerias`;
+  if(tipo===15||tipo===16||tipo===21) return `/Solicitacoes/${acao}Afastamento`;
+  if(tipo===19||tipo===20) return `/Solicitacoes/${acao}JustificarInconsistencia`;
+  return `/Solicitacoes/${acao}`;
+}
+function responderSolicitacao(i,acao){
+  const x={...M.gSolic.lista[i]};
+  const enviar=async(rota,corpo)=>{ if(await tentar(()=>secJson('POST',rota,corpo),'✓ Feito.')){ fecharSheetX(); recarregar('gSolic'); } };
+  if(acao==='visto') return enviar('/Solicitacoes/MarcarVisto',x);
+  if(acao==='desvisto') return enviar('/Solicitacoes/DesmarcarVisto',x);
+  if(acao==='Descartar'){
+    window.__responder=async(m)=>{ if(!m.trim()) return toast('Informe o motivo.');
+      await enviar(rotaResponder(x.tipoSolicitacao,'Descartar'),{...x,motivoRejeicao:m}); };
+    return pedirSenhaOuMotivo({titulo:'Reprovar solicitação',texto:'O funcionário vê esse motivo.',
+      rotulo:'Motivo do descarte',acao:'window.__responder'});
+  }
+  // aceitar com descarte ou inclusão manual sem motivo: o app oficial pede um
+  const precisa=(a)=>[1,2,3,4].includes(a.tipo)&&!a.motivo;
+  if(!(x.alteracoesFonteDados||[]).some(precisa)) return enviar(rotaResponder(x.tipoSolicitacao,'Aceitar'),x);
+  window.__responder=async(m)=>{ if(!m.trim()) return toast('Informe o motivo.');
+    await enviar(rotaResponder(x.tipoSolicitacao,'Aceitar'),
+      {...x,alteracoesFonteDados:x.alteracoesFonteDados.map(a=>precisa(a)?{...a,motivo:m}:a)}); };
+  pedirSenhaOuMotivo({titulo:'Aprovar solicitação',texto:'Há marcações descartadas ou incluídas: o Secullum pede um motivo.',
+    rotulo:'Motivo',acao:'window.__responder'});
+}
+
+/* ---------- justificar ausência ----------
+   O app oficial pede ao Secullum o "molde" do dia (GET /Solicitacoes/{data}/{id})
+   e devolve esse objeto com os campos da tela preenchidos — como o ajuste. */
+async function enviarAusencia(){
+  const st=M.ausencia;
+  if(!st.jid) return toast('Escolha o motivo.');
+  const j=(st.justs||[]).find(x=>String(x.id)===String(st.jid));
+  if(j&&(j.exigirFotoAtestado||j.enviarImagem)&&!st.foto) return toast('Esse motivo exige a foto do atestado.');
+  const afast=st.modo==='afast';
+  if(afast&&st.fim<st.ini) return toast('O fim do afastamento é antes do início.');
+  if(!afast&&st.tipo===1&&!(EH_HORA.test(st.hIni||'')&&EH_HORA.test(st.hFim||''))) return toast('Informe início e fim.');
+  const dia=afast?st.ini:st.data;
+  let molde={};
+  try{ molde=await secJson('GET',`/Solicitacoes/${dia}/{funcionarioId}?origemRequisicao=0`)||{}; }catch(e){}
+  const corpo={ funcionarioId:S.func.id||null, solicitanteId:null, filtro1Id:null, filtro2Id:null,
+    periculosidade:null, versao:null, dados:null, registroPendente:false, existePeriodoEncerrado:false,
+    dataSolicitacao:null, feriasVendaDias:null,
+    ...(typeof molde==='object'&&molde?molde:{}),
+    data:`${dia}T00:00:00`, justificativaId:+st.jid, observacoes:st.obs||'',
+    foto:st.foto||null, temFoto:!!st.foto };
+  PARES.forEach(n=>{ if(corpo['entrada'+n]===undefined) corpo['entrada'+n]=''; if(corpo['saida'+n]===undefined) corpo['saida'+n]=''; });
+  let rota='/Solicitacoes';
+  if(afast){ Object.assign(corpo,{tipo:15,tipoAusencia:1,dataInicioAfastamento:isoSec(st.ini),dataFimAfastamento:isoSec(st.fim)});
+    rota='/Solicitacoes/Afastamento'; }
+  else{ Object.assign(corpo,{tipo:st.tipo,tipoAusencia:0,dataInicioAfastamento:null,dataFimAfastamento:null});
+    if(st.tipo===1){ corpo.entrada1=st.hIni; corpo.saida1=st.hFim; } }
+  if(await tentar(()=>secJson('POST',rota,corpo),'Justificativa enviada — vai pro gestor aprovar.')){
+    M.ausencia={}; abrirTela('ausencia'); }
+}
+
+/* ---------- férias ---------- */
+function formFerias(){
+  abrirSheetX(`<h3 style="margin:0 0 6px">🏖️ Solicitar férias</h3>
+    <div class="row2"><div class="field"><label>Início</label><input type="date" id="fe_ini" oninput="diasFerias()"></div>
+      <div class="field"><label>Fim</label><input type="date" id="fe_fim" oninput="diasFerias()"></div></div>
+    <p class="muted" id="fe_dias" style="font-size:13px;margin:0 0 10px"></p>
+    <div class="field"><label>Observação</label><input id="fe_obs"></div>
+    <button class="btn" onclick="comBotao(this,enviarFerias)">Enviar solicitação</button>`);
+}
+function diasFerias(){ const a=$('#fe_ini').value,b=$('#fe_fim').value;
+  $('#fe_dias').textContent=(a&&b)?((new Date(b)-new Date(a))/864e5+1)+' dias corridos':''; }
+async function enviarFerias(){
+  const ini=$('#fe_ini').value, fim=$('#fe_fim').value;
+  if(!ini||!fim) return toast('Informe início e fim.');
+  if(fim<ini) return toast('O fim é antes do início.');
+  const vazios={}; PARES.forEach(n=>{ vazios['entrada'+n]=''; vazios['saida'+n]=''; });
+  // corpo literal do SolicitarFerias; "data" é um Date no app, que o JSON vira em UTC
+  const corpo={ data:new Date(ini+'T00:00:00').toISOString(), justificativaId:null, ...vazios, tipo:21,
+    observacoes:$('#fe_obs').value.trim(), foto:null, temFoto:false, registroPendente:false,
+    existePeriodoEncerrado:false, dataInicioAfastamento:isoSec(ini), dataFimAfastamento:isoSec(fim),
+    funcionarioId:S.func.id||null };
+  if(await tentar(()=>secJson('POST','/Solicitacoes/Ferias',corpo),'Férias solicitadas — vai pro gestor aprovar.')){
+    fecharSheetX(); recarregar('ferias'); }
+}
+function formVendaFerias(){
+  abrirSheetX(`<h3 style="margin:0 0 6px">💰 Vender férias</h3>
+    <div class="field"><label>Quantos dias</label><input id="fv_dias" inputmode="numeric"></div>
+    <div class="field"><label>Observação</label><input id="fv_obs"></div>
+    <button class="btn" onclick="comBotao(this,enviarVendaFerias)">Enviar solicitação</button>`);
+}
+async function enviarVendaFerias(){
+  const dias=parseInt($('#fv_dias').value,10);
+  if(!(dias>0)) return toast('O campo Quantidade deve ser maior que zero.');
+  if(await tentar(()=>secJson('POST','/Solicitacoes/VendaFerias',
+      {funcionarioId:S.func.id||null,feriasVendaDias:dias,observacoes:$('#fv_obs').value.trim()}),
+    'Venda solicitada — vai pro gestor aprovar.')){ fecharSheetX(); recarregar('ferias'); }
+}
+
+/* ---------- assinatura digital do cartão ---------- */
+function itemAssinatura(a,i,gestor){
+  const est=gestor?(a.estadoGerente??a.estado):a.estado;
+  const [st,cls]=STATUS_ASSIN[est]||['—','mut'];
+  const id=a.assinaturaDigitalCartaoPontoId??a.id;
+  const pdf=`/AssinaturaDigitalCartaoPonto/${+id}${gestor?'/'+(+a.funcionarioId):''}?axpw={axpw}`;
+  const pend=gestor?est===3:est===0;
+  return `<div class="item"><div class="topo"><b>${gestor&&a.funcionarioNome?esc(a.funcionarioNome)+' · ':''}${esc(a.descricao||'Cartão ponto')}</b><span class="pill ${cls}">${st}</span></div>
+    <p>${dataSec(a.dataInicio)} a ${dataSec(a.dataFim)} · nº ${esc(id)}</p>
+    ${(gestor?a.motivoGerente:a.motivo)?`<p>Motivo: ${esc(gestor?a.motivoGerente:a.motivo)}</p>`:''}
+    <div class="acoes2"><button class="btn ghost sm" onclick="tentar(()=>secArquivo('${pdf}','cartao-${+id}.pdf'))">📄 Ver cartão</button>
+      ${pend?`<button class="btn sm" onclick="assinarCartao(${i},${gestor},true)">✍️ Assinar</button>
+        <button class="btn ghost sm" style="color:var(--bad)" onclick="assinarCartao(${i},${gestor},false)">✕ Recusar</button>`:''}</div>
+  </div>`;
+}
+function assinarCartao(i,gestor,aprovar){
+  const s=gestor?'gAssin':'assin';
+  const rota='/AssinaturaDigitalCartaoPonto/'+(aprovar?'Aprovar':'Descartar')+(gestor?'Gerente':'');
+  window.__assinar=async(v)=>{
+    if(aprovar&&!senhaConfere(v)) return;
+    if(!aprovar&&!v.trim()) return toast('Informe o motivo.');
+    const c=await coordsAssinatura();
+    const corpo={...M[s].lista[i], ...c, ...(aprovar?{senha:v}:gestor?{motivoGerente:v}:{motivo:v})};
+    if(await tentar(()=>secJson('POST',rota,corpo),aprovar?'✓ Cartão assinado.':'Recusa enviada.')){ fecharSheetX(); recarregar(s); }
+  };
+  pedirSenhaOuMotivo(aprovar
+    ?{titulo:'✍️ Assinar cartão ponto',texto:'Confirme com a sua senha do Secullum. A assinatura leva a sua localização, como no app oficial.',rotulo:'Senha',tipo:'password',acao:'window.__assinar'}
+    :{titulo:'Recusar cartão ponto',texto:'Explique o que está errado — o RH lê isso.',rotulo:'Motivo',acao:'window.__assinar'});
+}
+
+/* ---------- arquivos do RH ---------- */
+function itemArquivo(a,i){
+  const ass=(a.assinaturas||[])[0];
+  const status=ass?(ass.status===0?['✓ assinado','ok']:['✕ recusado','bad']):a.solicitarAssinaturaFuncionario?['⏳ assinatura pendente','warn']:null;
+  return `<div class="item"><div class="topo"><b style="${a.vencido?'color:var(--warn)':''}">📄 ${esc(a.nomeArquivo||'arquivo')}</b>${status?`<span class="pill ${status[1]}">${status[0]}</span>`:''}</div>
+    <p>${esc(a.tipoArquivo||'')}${a.dataArquivo?' · '+dataSec(a.dataArquivo):''}${a.validadeArquivo?' · validade '+dataSec(a.validadeArquivo):''}${a.vencido?' · vencido':''}</p>
+    ${a.descricao?`<p>${esc(a.descricao)}</p>`:''}
+    ${ass&&ass.motivo?`<p>Motivo: ${esc(ass.motivo)}</p>`:''}
+    <div class="acoes2"><button class="btn ghost sm" onclick="abrirArquivoRh(${i})">Abrir</button>
+      ${(a.solicitarAssinaturaFuncionario&&!ass)?`<button class="btn sm" onclick="assinarArquivo(${i},true)">✍️ Assinar</button>
+        <button class="btn ghost sm" style="color:var(--bad)" onclick="assinarArquivo(${i},false)">✕ Recusar</button>`:''}</div></div>`;
+}
+async function abrirArquivoRh(i){
+  const a=M.arquivos.lista[i];
+  await tentar(async()=>{
+    let mime=''; try{ mime=String(await secJson('GET',`/RepositorioArquivo/GetType/${+a.id}`)||''); }catch(e){}
+    if(mime==='') throw new Error('Arquivo excluído pelo RH.');
+    const nome=(a.nomeArquivo||('arquivo-'+a.id)).replace(/[^\w.\- ]/g,'_');
+    await secArquivo(`/RepositorioArquivo/GetFile/${+a.id}`, /\.\w{2,4}$/.test(nome)?nome:nome+extDe(mime));
+  });
+}
+function assinarArquivo(i,aprovar){
+  window.__assinarArq=async(v)=>{
+    const a=M.arquivos.lista[i];
+    if(aprovar&&!senhaConfere(v)) return;
+    if(!aprovar&&!v.trim()) return toast('Informe o motivo.');
+    const corpo=aprovar?{repositorioArquivoId:a.id,senha:v,...(await coordsAssinatura()),repositorioArquivosIds:[a.id]}
+      :{repositorioArquivoId:a.id,motivo:v,repositorioArquivosIds:[a.id]};
+    if(await tentar(()=>secJson('POST','/RepositorioArquivoAssinatura/'+(aprovar?'Aprovar':'Rejeitar'),corpo),
+      aprovar?'✓ Arquivo assinado.':'Recusa enviada.')){ fecharSheetX(); recarregar('arquivos'); }
+  };
+  pedirSenhaOuMotivo(aprovar
+    ?{titulo:'✍️ Assinar arquivo',texto:'Confirme com a sua senha do Secullum.',rotulo:'Senha',tipo:'password',acao:'window.__assinarArq'}
+    :{titulo:'Recusar arquivo',texto:'Explique o motivo pro RH.',rotulo:'Motivo',acao:'window.__assinarArq'});
+}
+
+/* ---------- notificações ---------- */
+async function marcarNotificacao(i){
+  const n=M.notif.lista[i];
+  if(await tentar(()=>secJson('POST',`/Notificacoes/MarcarNotificacaoVisualizada/${+n.id}/${!n.visualizada}`))){
+    n.visualizada=!n.visualizada; render(); }
+}
+// TipoNotificacao → tela, igual ao handleVisualizarNotificacaoClick do app
+async function abrirNotificacao(i){
+  const n=M.notif.lista[i];
+  if(!n.visualizada){ try{ await secJson('POST',`/Notificacoes/MarcarNotificacaoVisualizada/${+n.id}/true`); n.visualizada=true; }catch(e){} }
+  const destino={0:'solic',3:'assin',13:'gAssin',14:'gAssin',7:'arquivos',8:'cartao'}[n.tipo];
+  if(n.tipo===1||n.tipo===11||n.tipo===12){ go('hoje'); return carregarInconsistencias(); }
+  if(n.tipo===2){ go('hist'); return; }
+  if(destino) return abrirTela(destino);
+  toast('Essa notificação não tem tela pra abrir.');
+}
+
+/* ---------- conta ---------- */
+async function enviarDadosCadastrais(){
+  const st=M.dados, c=st.campos;
+  const endMudou=['endereco','bairro','cidade','estado','cep'].some(k=>(c[k]||'')!==(st.orig[k]||''));
+  if(P().usaExigenciaComprovanteEndereco&&endMudou&&!c.comprovanteEndereco)
+    return toast('Mudou o endereço: anexe o comprovante de endereço.');
+  if(await tentar(()=>secJson('POST','/Solicitacoes/DadosCadastrais',c),'Enviado — o RH vai revisar.')){
+    if(S.perfil) S.perfil.possuiSolicitacaoAtualizacaoDadosCadastraisPendente=true; render(); }
+}
+async function alterarSenha(){
+  const atual=$('#s_atual').value, nova=$('#s_nova').value, conf=$('#s_conf').value;
+  if(!atual||!nova) return toast('Preencha a senha atual e a nova.');
+  if(nova!==conf) return toast('A confirmação não bate com a nova senha.');
+  if(!(await tentar(()=>secJson('POST','/Funcionarios',{senhaAtual:atual,novaSenha:nova,confirmarSenha:conf})))) return;
+  // a sessão do gateway leva a senha dentro do token: sem entrar de novo, tudo daria 401
+  S.auth.senha=btoa(nova);
+  const ok=await reloginSilencioso();
+  if(!S.auth.lembrar) S.auth.senha='';
+  save();
+  toast(ok?'✓ Senha alterada.':'Senha alterada — entre de novo com a nova.');
+  if(!ok) voltarLogin(); else go('mais');
+}
+async function alternarComprovante(receber){
+  const p=P();
+  const ok=(p.configuracoesEspeciaisAcesso||{}).comprovantes1PorBatida
+    ? await tentar(()=>secJson('POST','/Configuracoes/ReceberComprovante',{receberEmailComprovantePonto:receber}))
+    : await tentar(()=>secJson('POST','/Configuracoes/NaoReceberComprovante',{naoReceberEmailComprovantePonto:!receber}));
+  if(ok&&S.perfil){ S.perfil.receberEmailComprovantePonto=receber; S.perfil.naoReceberEmailComprovantePonto=!receber; save(); }
+  render();
+}
+async function salvarNotifSecullum(k,v){
+  const n={...(S.secNotif||{})}; n[k]=v;
+  const corpo={}; for(let i=1;i<=5;i++){ ['Entrada','Saida'].forEach(t=>{ const c='notificacao'+t+i; corpo[c]=n[c]||0; }); }
+  corpo.NotificacaoBatidaAlterada=k.replace('notificacao','').replace(/^./,c=>c.toLowerCase());
+  corpo.TipoNotificacaoConfiguracao=v===0?'Notificar Sempre':'Não notificar';
+  if(await tentar(()=>secJson('POST','/Configuracoes',corpo),'✓ Salvo no Secullum.')){ S.secNotif=n; save(); }
+  else render();
+}
+async function enviarAjuda(){
+  const v=(id)=>$('#'+id).value.trim();
+  if(!v('a_nome')||!v('a_email')||!v('a_cel')||!v('a_cid')||!v('a_uf')||!v('a_txt')) return toast('Preencha todos os campos.');
+  if(await tentar(()=>secJson('POST','/ServicoOnline/GravarPedidoAjuda',{ aplicativo:4, celular:v('a_cel'),
+      cidade:v('a_cid'), codigoCliente:S.auth.banco||'', email:v('a_email'), estado:v('a_uf'), idioma:0,
+      nome:v('a_nome'), nomeCliente:S.func.empresa||'', numeroIdentificador:S.auth.usuario||'', texto:v('a_txt') }),
+    'Pedido enviado ao suporte da Secullum.')) go('mais');
+}
+async function aceitarLgpd(){
+  if(await tentar(()=>secJson('POST','/Funcionarios/SalvarAceiteTermosLgpd'),'✓ Termo aceito.')){
+    if(S.perfil) S.perfil.aceitouTermosLgpd=true; save(); render(); }
+}
+async function excluirConta(){
+  if(!$('#c_ciente').classList.contains('on')) return toast('Marque que entende que vai perder o acesso.');
+  const s=$('#c_senha').value; if(!senhaConfere(s)) return;
+  // o app oficial manda só a senha, como string JSON, sem objeto em volta
+  if(await tentar(()=>secJson('POST','/Funcionarios/DeletarConta',s),'Conta excluída.')) logout();
+}
+
+/* ---------- indicadores personalizados ---------- */
+async function novoIndicador(){
+  let cols=[]; try{ cols=await secJson('GET','/Indicadores/ListarColunasCalculoIndicador/0')||[]; }catch(e){}
+  abrirSheetX(`<h3 style="margin:0 0 6px">＋ Indicador personalizado</h3>
+    <div class="field"><label>Título</label><input id="ip_tit"></div>
+    <div class="field"><label>Coluna</label><select id="ip_col">${(cols.length?cols:[{nomeColuna:'BSaldo',colunaCalculo:10}])
+      .map(c=>`<option value="${+c.colunaCalculo}">${esc(c.nomeColuna)}</option>`).join('')}</select></div>
+    <div class="row2"><div class="field"><label>Destacar quando for</label><select id="ip_cmp">
+        <option value="0">maior que</option><option value="1">menor que</option><option value="2">igual a</option></select></div>
+      <div class="field"><label>Valor (hh:mm)</label><input id="ip_val" maxlength="7" placeholder="10:00"></div></div>
+    <div class="field"><label>Cor</label><select id="ip_cor"><option value="0">Verde</option><option value="1">Amarelo</option><option value="2">Vermelho</option></select></div>
+    <button class="btn" onclick="comBotao(this,salvarIndicador)">Salvar</button>`);
+}
+async function salvarIndicador(){
+  const corpo={id:0,tipo:0,titulo:$('#ip_tit').value.trim(),colunaCalculo:+$('#ip_col').value,
+    corTexto:+$('#ip_cor').value,comparacao:+$('#ip_cmp').value,valor:$('#ip_val').value.trim()};
+  if(!corpo.titulo) return toast('Dê um título.');
+  if(await tentar(()=>secJson('POST','/Indicadores/SalvarIndicador',corpo),'✓ Indicador criado.')){ fecharSheetX(); recarregar('indic'); }
+}
+async function excluirIndicador(id){
+  if(!id||!confirm('Excluir este indicador?')) return;
+  if(await tentar(()=>secJson('DELETE',`/Indicadores/ExcluirIndicador/${id}`),'Indicador excluído.')) recarregar('indic');
+}
+
+/* =====================================================================
+   ESQUECI A SENHA — as quatro etapas da RecuperacaoSenha, antes do login
+   ===================================================================== */
+let recSenha=null;
+async function recuperar(etapa,corpo){
+  let r;
+  try{ r=await fetch(gwUrl()+'/auth/recuperar',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({banco:recSenha.banco,etapa,corpo})}); }
+  catch(e){ throw new Error('Gateway não respondeu — sem internet?'); }
+  if(!r.ok) throw new Error(await msgErro(r));
+  const t=await r.text(); try{ return JSON.parse(t); }catch(e){ return t; }
+}
+function abrirRecuperarSenha(){
+  recSenha={ banco:$('#l_banco').value.trim(), usuario:$('#l_user').value.trim(), tipo:+$('#l_tipo').value, passo:1 };
+  desenharRecuperar();
+}
+function desenharRecuperar(){
+  const r=recSenha, base=`<h3 style="margin:0 0 6px">🔑 Recuperar senha</h3>`;
+  if(r.passo===1) return abrirSheetX(base+`<p class="muted" style="font-size:13px;margin:0 0 12px">O código vai pro e-mail cadastrado no Secullum.</p>
+    <div class="field"><label>Empresa (banco)</label><input id="rs_banco" inputmode="numeric" value="${esc(r.banco)}"></div>
+    <div class="row2"><div class="field"><label>Tipo</label><select id="rs_tipo"><option value="0" ${r.tipo===0?'selected':''}>Nº Folha</option><option value="1" ${r.tipo===1?'selected':''}>Identificador</option></select></div>
+      <div class="field"><label>Usuário</label><input id="rs_user" value="${esc(r.usuario)}"></div></div>
+    <button class="btn" onclick="comBotao(this,recPasso1)">Continuar</button>`);
+  if(r.passo===2) return abrirSheetX(base+`<p class="muted" style="font-size:13px;margin:0 0 12px">Seu e-mail cadastrado é <b style="color:var(--txt)">${esc(r.emailOculto)}</b>. Digite ele completo pra receber o código.</p>
+    <div class="field"><label>E-mail</label><input id="rs_email" type="email"></div>
+    <button class="btn" onclick="comBotao(this,recPasso2)">Enviar código</button>`);
+  if(r.passo===3) return abrirSheetX(base+`<p class="muted" style="font-size:13px;margin:0 0 12px">Digite o código que chegou no seu e-mail.</p>
+    <div class="field"><label>Código</label><input id="rs_cod" inputmode="numeric"></div>
+    <button class="btn" onclick="comBotao(this,recPasso3)">Confirmar código</button>`);
+  abrirSheetX(base+`<div class="field"><label>Nova senha</label><input id="rs_nova" type="password"></div>
+    <div class="field"><label>Confirmar</label><input id="rs_conf" type="password"></div>
+    <button class="btn" onclick="comBotao(this,recPasso4)">Trocar senha</button>`);
+}
+const recBase=()=>({bancoId:+recSenha.banco,usuario:recSenha.usuario,tipoUsuarioAutenticacao:recSenha.tipo});
+async function recPasso1(){
+  Object.assign(recSenha,{banco:$('#rs_banco').value.trim(),usuario:$('#rs_user').value.trim(),tipo:+$('#rs_tipo').value});
+  if(!recSenha.banco||!recSenha.usuario) return toast('Preencha empresa e usuário.');
+  await tentar(async()=>{
+    const e=await recuperar('ObterEmailOcultoFuncionario',{usuario:recSenha.usuario,UsuarioAutenticacao:String(recSenha.tipo)});
+    const email=typeof e==='string'?e:(e&&(e.email||e.emailOculto));
+    if(!email) throw new Error('E-mail não encontrado — fale com o RH.');
+    recSenha.emailOculto=email; recSenha.passo=2; desenharRecuperar();
+  });
+}
+async function recPasso2(){
+  const email=$('#rs_email').value.trim(); if(!email) return toast('Digite o e-mail.');
+  await tentar(async()=>{ await recuperar('ConfirmarEmail',{...recBase(),email}); recSenha.passo=3; desenharRecuperar(); },'Código enviado.');
+}
+async function recPasso3(){
+  const codigo=$('#rs_cod').value.trim(); if(!codigo) return toast('Digite o código.');
+  await tentar(async()=>{ await recuperar('ConfirmarCodigo',{...recBase(),codigo}); recSenha.codigo=codigo; recSenha.passo=4; desenharRecuperar(); });
+}
+async function recPasso4(){
+  const nova=$('#rs_nova').value, conf=$('#rs_conf').value;
+  if(!nova||nova!==conf) return toast('As senhas não batem.');
+  if(await tentar(()=>recuperar('TrocarSenha',{...recBase(),codigo:recSenha.codigo,novaSenha:nova,confirmarSenha:conf}),
+    '✓ Senha trocada — entre com a nova.')){
+    $('#l_banco').value=recSenha.banco; $('#l_user').value=recSenha.usuario; $('#l_tipo').value=String(recSenha.tipo);
+    recSenha=null; fecharSheetX(); }
+}
+
 /* ---------- pergunta do almoço ---------- */
 function abrirPerguntaAlmoco(){
   const plan=planejarDia(S.hoje,cfgHoje());
@@ -1195,7 +2222,7 @@ const el=(h)=>{const t=document.createElement('template');t.innerHTML=h.trim();r
 let view='hoje';
 function go(v){
   const mesma=(view===v);
-  view=v; if(v==='hist') carregarHistorico(); render();
+  view=v; if(v==='hist') carregarHistorico(); if(v==='mais') sub=null; render();
   // tocar na aba atual (ou na logo) volta pro topo em vez de não fazer nada
   window.scrollTo({ top:0, behavior: mesma?'smooth':'auto' });
 }
@@ -1205,7 +2232,7 @@ function marcarNav(){
 const LABELS={entrada:'Entrada',saidaAlmoco:'Saída p/ almoço',voltaAlmoco:'Volta do almoço',saida:'Saída'};
 const ORDER=['entrada','saidaAlmoco','voltaAlmoco','saida'];
 function render(){ marcarNav(); const box=$('#views'); if(!box) return; box.innerHTML='';
-  box.appendChild(view==='cfg'?viewCfg():view==='hist'?viewHist():viewHoje()); }
+  box.appendChild(view==='cfg'?viewCfg():view==='hist'?viewHist():view==='mais'?viewMais():viewHoje()); }
 
 /* Pendência é de dia passado: continua valendo mesmo quando hoje é folga.
    Antes ficava presa dentro da tela de dia útil e sumia no fim de semana. */
@@ -1231,7 +2258,7 @@ function viewHoje(){
     wrap.appendChild(el(`<div class="card" style="text-align:center;padding:40px">
       <div style="font-size:44px">🎉</div>
       <h3 style="border:0">Hoje é folga</h3>
-      <p class="muted" style="margin:0">Fim de semana, sem carga. O monitor volta segunda.</p></div>`));
+      <p class="muted" style="margin:0">Fim de semana, sem carga. O monitor volta segunda.</p>${botaoRegistrar()}</div>`));
     const p=cardPendencias(); if(p) wrap.appendChild(p);
     return wrap;
   }
@@ -1264,6 +2291,7 @@ function viewHoje(){
       </div>
     </div>
     <div class="pill ${sitCls}" style="width:100%;box-sizing:border-box;justify-content:center;margin-top:12px;padding:11px;white-space:normal;text-align:center">${sit.txt}</div>
+    ${botaoRegistrar()}
   </div>`));
 
   { const p=cardPendencias(); if(p) wrap.appendChild(p); }
@@ -1534,7 +2562,12 @@ async function testarGateway(){
       {headers:{Authorization:'Bearer '+S.auth.token}});
     if(r.status===404) return toast('✓ Online, mas sem as rotas novas: ajustar e justificar ainda não funcionam.');
     if(r.status===401) return toast('✓ Online. A sessão expirou — entre de novo e teste outra vez.');
-    toast('✓ Online, com as rotas de ajuste e justificativa publicadas.');
+    // /me/api é o que destrava as telas do Mais e o registrar ponto; conferimos
+    // com uma leitura inofensiva, a lista de justificativas
+    const a=await fetch(url+'/me/api',{method:'POST',headers:{Authorization:'Bearer '+S.auth.token,'Content-Type':'application/json'},
+      body:JSON.stringify({metodo:'GET',rota:'/Justificativas'})});
+    if(a.status===404) return toast('✓ Online com ajuste e justificativa, mas sem /me/api: o Mais e o registrar ponto ainda não funcionam.');
+    toast('✓ Online, com todas as rotas publicadas.');
   }catch(e){ toast('✓ Online, mas a checagem das rotas falhou: '+(e.message||e)); }
 }
 
