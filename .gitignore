@@ -1,2 +1,6 @@
 node_modules/
 android/app/pontoimp.jks
+# build local do APK (feito na máquina, não só no CI)
+android/.gradle/
+android/build/
+android/app/build/
