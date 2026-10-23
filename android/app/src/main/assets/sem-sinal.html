@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PontoImp — sem conexão</title>
+<!-- Mostrada pelo APK quando a página do app não carrega. Fica dentro do
+     próprio APK, então aparece mesmo sem internet nenhuma. Mesmas cores do app. -->
+<style>
+  :root{ --bg:#0f1220; --card:#1b2138; --card2:#212a47; --line:#2b3455;
+    --txt:#eef1fb; --mut:#9aa5c8; --grad:linear-gradient(135deg,#6c8cff,#8a6cff); }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--txt);display:grid;place-items:center;padding:24px;
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+  .card{width:100%;max-width:400px;text-align:center;padding:34px 26px;border-radius:24px;
+    background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line)}
+  .ico{font-size:52px}
+  h1{font-size:21px;margin:10px 0 6px}
+  p{color:var(--mut);margin:0 0 20px;font-size:14px}
+  button{width:100%;padding:13px;border:0;border-radius:12px;background:var(--grad);color:#fff;
+    font:inherit;font-weight:700}
+  small{display:block;color:var(--mut);margin-top:14px;font-size:12px}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="ico">📡</div>
+    <h1>Sem conexão</h1>
+    <p>Não consegui abrir o PontoImp. Os alarmes já marcados continuam tocando —
+       eles não dependem da internet.</p>
+    <button onclick="tentar()">Tentar de novo</button>
+    <small id="st">Tento sozinho assim que a rede voltar.</small>
+  </div>
+<script>
+  // a ponte nativa troca este marcador pela URL do app antes de exibir
+  const URL_APP = '__URL_APP__';
+  function tentar(){ document.getElementById('st').textContent='Conectando…'; location.replace(URL_APP); }
+  addEventListener('online', tentar);
+  setInterval(()=>{ if(navigator.onLine) tentar(); }, 15000);
+</script>
+</body>
+</html>

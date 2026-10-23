@@ -2,4 +2,6 @@
 <paths>
     <!-- só a pasta de downloads privada do app: é onde o APK baixado fica -->
     <external-files-path name="baixados" path="Download/" />
+    <!-- cartão ponto em PDF, comprovantes e arquivos do RH abertos pelo app -->
+    <cache-path name="documentos" path="documentos/" />
 </paths>

@@ -58,6 +58,22 @@ nele e publique por lá.
 | POST | `/me/solicitacao` | `/Solicitacoes` | o **ajuste de ponto** — o dia inteiro numa solicitação, que vai pra aprovação do gestor |
 | GET | `/me/solicitacoes?inicio=&fim=&status=` | `/Solicitacoes/{ini}/{fim}/{status}/0/0` | ver o que já foi pedido e em que pé está |
 | POST | `/me/ponto` | `/IncluirPonto?funcionarioId={id}` | o botão `＋` de incluir batida que faltou |
+| POST | `/me/api` | a rota pedida, se estiver em `ROTAS_APP` | **todas as telas do Mais** e o registrar ponto: cartão, indicadores, férias, ausência, assinaturas, arquivos, notificações, conta e gestor |
+| GET | `/me/endereco?lat=&lng=` | `geolocalizacao.secullum.com.br/Reverse` | o endereço que vai junto da batida e da assinatura |
+| POST | `/auth/recuperar` | `/RecuperacaoSenha/{etapa}` | o "Esqueci minha senha" da tela de login (sem sessão) |
+
+### Por que `/me/api` não é um proxy aberto
+
+Ela só repassa o método e a rota que casam com `ROTAS_APP`: a lista das chamadas
+que o próprio app oficial faz, tirada do bytecode da versão 1.45.0
+(`docs/rotas-secullum.md`). Recusa com 403 o que estiver fora da lista, `..`, barra
+dupla e `%2f`. O app manda dois marcadores que só o Worker sabe preencher:
+
+- `{funcionarioId}`: o id do funcionário da sessão;
+- `{axpw}`: a credencial em base64 que o Secullum exige na URL do PDF e do
+  comprovante. É preenchido **depois** da checagem, porque o base64 pode ter `/`.
+
+PDF, foto e arquivo do RH voltam como bytes, com o `Content-Type` original.
 | GET | `/me/inconsistencias?inicio=&fim=&status=` | `/Inconsistencias/{ini}/{fim}/{status}` | a listagem de pendências |
 | POST | `/me/inconsistencia` | `/Inconsistencias` | o envio da **justificativa** |
 

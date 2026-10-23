@@ -1,9 +1,10 @@
 /* ---------------------------------------------------------------------------
    Worker pontoimp-gateway — arquivo INTEIRO, já com as rotas novas.
 
-   É o mesmo código que está no ar hoje, mais cinco rotas: /me/solicitacao,
-   /me/solicitacoes, /me/ponto, /me/inconsistencias e /me/inconsistencia.
-   Nada do que já funcionava mudou.
+   É o mesmo código que está no ar hoje, mais: /me/solicitacao,
+   /me/solicitacoes, /me/ponto, /me/inconsistencias, /me/inconsistencia,
+   /me/api (todas as telas do app oficial, presas à lista ROTAS_APP),
+   /me/endereco e /auth/recuperar. Nada do que já funcionava mudou.
 
    Como usar: Cloudflare → Workers & Pages → pontoimp-gateway → Edit code.
    Apaga tudo o que está lá, cola isto no lugar, Deploy. Instruções passo a
@@ -80,6 +81,94 @@ async function secullum(path, { method = "GET", body, sess, banco } = {}) {
 
 const passthru = (r) => json(r.status, r.txt);
 
+/* Cartão em PDF, arquivos do RH e fotos não são texto: ler como .text()
+   corromperia os bytes. Aqui a resposta passa crua, com o tipo original. */
+async function secullumBruto(path, { method = "GET", body, sess } = {}) {
+  const headers = {
+    "User-Agent": UA,
+    "Accept-Language": "pt-BR",
+    "pragma": "no-cache",
+    "cache-control": "no-cache",
+    "Authorization": basic(sess),
+  };
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  return fetch(SECULLUM + sess.banco + path, {
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+}
+
+const passthruBinario = (r) => new Response(r.body, {
+  status: r.status,
+  headers: { "Content-Type": r.headers.get("Content-Type") || "application/json; charset=utf-8", ...CORS },
+});
+
+/* Rotas que o app oficial (Secullum RH 1.45.0) chama, tiradas do bytecode.
+   Só o que é do próprio funcionário ou do gestor sobre a equipe dele — o
+   Secullum ainda confere a permissão de cada uma do lado de lá. */
+const SEG = "[^/?#]+";
+const ROTAS_APP = [
+  ["GET", `/Funcionarios/${SEG}(/${SEG}){0,3}`],
+  ["GET", `/Funcionarios/DadosAdicionais/${SEG}`],
+  ["GET", "/Funcionarios/ListarFuncionariosGerente"],
+  ["POST", "/Funcionarios"],
+  ["POST", "/Funcionarios/DeletarConta"],
+  ["POST", "/Funcionarios/SalvarAceiteTermosLgpd"],
+  ["GET", "/TermoLgpd"],
+  ["GET", `/Batidas/${SEG}(/${SEG}){0,2}`],
+  ["GET", `/Batidas/Comprovante\\?axpw=${SEG}&(batidaId|registroPendenciaId)=${SEG}(&nome=${SEG})?`],
+  ["GET", "/IncluirPonto"],
+  ["GET", `/IncluirPonto/ListarUltimasPendenciasFuncionario/${SEG}`],
+  ["POST", `/IncluirPonto\\?[^#]+`],
+  ["POST", "/QualidadeVidaTrabalho"],
+  ["GET", "/Justificativas"],
+  ["GET", "/Filtro/ListarFiltro1"],
+  ["GET", "/Filtro/ListarFiltro2"],
+  ["GET", "/Escolaridade"],
+  ["GET", `/Escolaridade/${SEG}`],
+  ["GET", `/Inconsistencias/${SEG}/${SEG}/${SEG}`],
+  ["POST", "/Inconsistencias"],
+  ["GET", `/Solicitacoes/${SEG}/${SEG}(/${SEG}){0,3}(\\?origemRequisicao=${SEG})?`],
+  // foto do atestado, do funcionário ou do comprovante anexada à solicitação
+  ["GET", `/Solicitacoes/${SEG}/(FotoAtestado|FotoFuncionario|ComprovanteEndereco)\\?axpw=${SEG}&retornarFotoComoArquivo=true`],
+  ["POST", "/Solicitacoes"],
+  ["POST", "/Solicitacoes/(Ferias|Afastamento|VendaFerias|DadosCadastrais|MarcarVisto|DesmarcarVisto)"],
+  ["POST", "/Solicitacoes/(Aceitar|Descartar)[A-Za-z]*"],
+  ["GET", "/ControleFerias/Saldo"],
+  ["GET", "/Indicadores/v2/ResumoDiario"],
+  ["GET", "/Indicadores/TotalSolicitacoesPendentes"],
+  ["GET", "/Indicadores/IndicadoresGerente/?"],
+  ["GET", `/Indicadores/ListaHoras/${SEG}/${SEG}`],
+  ["GET", `/Indicadores/IndicadorCustomizado/${SEG}`],
+  ["GET", `/Indicadores/ListarColunasCalculoIndicador/?${SEG}?`],
+  ["POST", "/Indicadores/SalvarIndicador"],
+  ["DELETE", `/Indicadores/ExcluirIndicador/${SEG}`],
+  // lista: {ini}/{fim}/{status}/{perfil}[/{funcionarioId}]
+  ["GET", `/AssinaturaDigitalCartaoPonto/${SEG}/${SEG}/${SEG}/${SEG}(/${SEG})?`],
+  // PDF do cartão a assinar: {id}[/{funcionarioId}]?axpw=
+  ["GET", `/AssinaturaDigitalCartaoPonto/${SEG}(/${SEG})?\\?axpw=${SEG}`],
+  ["GET", `/AssinaturaDigitalCartaoPonto/CarregarAssinatura/${SEG}`],
+  ["POST", "/AssinaturaDigitalCartaoPonto/(Aprovar|Descartar|AprovarGerente|DescartarGerente)"],
+  ["GET", `/RepositorioArquivo/${SEG}(/${SEG}/${SEG})?`],
+  ["GET", `/RepositorioArquivo/(GetFile|GetType|ArquivoNotificacao)/${SEG}`],
+  ["POST", "/RepositorioArquivoAssinatura/(Aprovar|Rejeitar)"],
+  ["POST", "/RelatorioCartaoPonto"],
+  ["GET", `/RelatorioCartaoPonto\\?axpw=${SEG}&dataInicio=${SEG}&dataFim=${SEG}&funcionarioId=${SEG}`],
+  ["GET", `/CartaoPonto/${SEG}(/${SEG}){0,3}`],
+  ["GET", `/Notificacoes/${SEG}/${SEG}`],
+  ["POST", `/Notificacoes/MarcarNotificacaoVisualizada/${SEG}(/${SEG})?`],
+  ["POST", "/Configuracoes"],
+  ["POST", "/Configuracoes/(ReceberComprovante|NaoReceberComprovante)"],
+  ["POST", "/ServicoOnline/GravarPedidoAjuda"],
+].map(([m, r]) => [m, new RegExp("^" + r + "$")]);
+
+function rotaPermitida(metodo, rota) {
+  // ".." ou barra dupla não aparecem em nenhuma rota legítima do app
+  if (/\.\.|\/\/|%2f/i.test(rota)) return false;
+  return ROTAS_APP.some(([m, re]) => m === metodo && re.test(rota));
+}
+
 function msgSecullum(txt, fallback) {
   try {
     const a = JSON.parse(txt);
@@ -146,6 +235,16 @@ export default {
         try { func = JSON.parse(f.txt); } catch {}
 
         return json(200, { token: await cifrar(nova, secret), funcionarioId: id, func });
+      }
+
+      // "Esqueci a senha" acontece antes do login, então não tem sessão. As
+      // quatro etapas são as do app oficial: e-mail oculto, envio do código,
+      // confirmação do código e a senha nova.
+      if (u.pathname === "/auth/recuperar" && req.method === "POST") {
+        const { banco, etapa, corpo } = await req.json().catch(() => ({}));
+        const ETAPAS = ["ObterEmailOcultoFuncionario", "ConfirmarEmail", "ConfirmarCodigo", "TrocarSenha"];
+        if (!banco || !ETAPAS.includes(etapa) || !corpo) return json(400, { erro: "informe banco, etapa e corpo" });
+        return passthru(await secullum("/RecuperacaoSenha/" + etapa, { method: "POST", banco: String(banco), body: corpo }));
       }
 
       const authz = (req.headers.get("authorization") || "").replace("Bearer ", "");
@@ -223,6 +322,36 @@ export default {
         const corpo = await req.json().catch(() => null);
         if (!corpo) return json(400, { erro: "corpo inválido" });
         return passthru(await secullum("/Inconsistencias", { method: "POST", body: corpo, sess }));
+      }
+
+      // Endereço da coordenada, pelo mesmo serviço que o app oficial usa pra
+      // preencher o campo `endereco` da batida e da assinatura.
+      if (u.pathname === "/me/endereco") {
+        const lat = Number(u.searchParams.get("lat")), lng = Number(u.searchParams.get("lng"));
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return json(400, { erro: "informe lat e lng" });
+        const r = await fetch(`https://geolocalizacao.secullum.com.br/Reverse?latitude=${lat}&longitude=${lng}`,
+          { headers: { "User-Agent": UA } });
+        return json(r.status, await r.text());
+      }
+
+      // Todas as outras telas do app oficial passam por aqui. Uma rota só, em
+      // vez de uma por recurso, pra que o painel não precise de colagem nova a
+      // cada tela — mas presa à lista ROTAS_APP, senão viraria proxy aberto
+      // pra qualquer caminho do Secullum com a senha do funcionário.
+      if (u.pathname === "/me/api" && req.method === "POST") {
+        const p = await req.json().catch(() => null);
+        if (!p || typeof p.rota !== "string") return json(400, { erro: "informe a rota" });
+        const metodo = String(p.metodo || "GET").toUpperCase();
+        let rota = p.rota.replace(/\{funcionarioId\}/g, String(sess.funcionarioId));
+        if (!rotaPermitida(metodo, rota)) return json(403, { erro: `rota não permitida: ${metodo} ${rota}` });
+        // PDF do cartão e comprovante levam a credencial na própria URL (axpw é
+        // o mesmo base64 do Basic). Ela só existe aqui dentro, então o app manda
+        // o marcador e o Worker preenche — depois da checagem, porque o base64
+        // pode ter "/" e reprovaria nela.
+        rota = rota.replace("{axpw}", encodeURIComponent(btoa(`${sess.usuario}:${sess.senha}:${sess.tipo}`)));
+        return passthruBinario(await secullumBruto(rota, {
+          method: metodo, body: p.corpo === undefined ? undefined : p.corpo, sess,
+        }));
       }
 
       return json(404, { erro: "rota não encontrada" });

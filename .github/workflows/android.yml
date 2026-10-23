@@ -12,7 +12,11 @@ on:
 
 jobs:
   apk:
-    runs-on: ubuntu-latest
+    # Runner na máquina do Dener (WSL), não o do GitHub: é ele que tem o SDK
+    # Android em ~/android-sdk e que recebe o secret da chave de assinatura.
+    # O workflow só dispara em push e manual — nunca em PR de fork, que rodaria
+    # código de terceiros nesta máquina.
+    runs-on: [self-hosted, pontoimp]
     permissions:
       contents: write   # publicar a release com o APK
     steps:
@@ -84,3 +88,9 @@ jobs:
             para app fora da Play Store.
           files: android/app/build/outputs/apk/debug/pontoimp-*.apk
           make_latest: true
+
+      # A pasta de trabalho de um runner próprio sobrevive entre builds: a chave
+      # decifrada não pode ficar largada no disco depois do APK assinado.
+      - name: Apagar a chave decifrada
+        if: always()
+        run: rm -f android/app/pontoimp.jks
