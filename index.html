@@ -170,6 +170,7 @@
   .menuGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
   .menuGrid button{display:grid;justify-items:center;gap:6px;padding:14px 6px;border-radius:14px;
     background:var(--bg2);border:1px solid var(--line);font-size:12px;font-weight:600;text-align:center;line-height:1.25}
+  .menuGrid>*{min-width:0;overflow-wrap:anywhere;hyphens:auto}
   .menuGrid button i{font-style:normal;font-size:24px;line-height:1}
   .menuGrid button:active{transform:scale(.96)}
   .voltar{display:flex;align-items:center;gap:8px;margin:0 0 2px;color:var(--mut);font-weight:600;font-size:14px}
@@ -180,9 +181,15 @@
   .item p{margin:6px 0 0;font-size:13px;color:var(--mut);white-space:pre-wrap;word-break:break-word}
   .acoes2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
   .acoes2 .btn{width:100%;padding:8px 0;font-size:12px}
-  .filtros{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end}
+  /* duas datas lado a lado e o Buscar embaixo: campo de data no Android não
+     encolhe abaixo da largura natural, e com o botão na mesma linha passava
+     da tela de 360px e dava scroll lateral */
+  .filtros{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end}
   .filtros .field{margin:0}
-  .filtros .btn{height:44px}
+  .filtros .btn{grid-column:1/-1;height:42px}
+  /* item de grid não encolhe abaixo do conteúdo sem isto (min-width:auto) */
+  .cards>*,.row2>*,.cfgGrid>*,.filtros>*,.parPonto>*{min-width:0}
+  .field input,.field select{min-width:0;max-width:100%}
   .barra{height:8px;border-radius:99px;background:var(--bg2);overflow:hidden;margin-top:4px}
   .barra span{display:block;height:100%;background:var(--grad)}
   .termo{max-height:50vh;overflow:auto;font-size:13px;color:var(--mut);white-space:pre-wrap}
@@ -1792,7 +1799,7 @@ const TELAS={
         return `<div class="item"><div class="topo"><b>${esc(d.titulo)}</b><span class="pill mut">${quem.length}</span></div>
           <div class="barra"><span style="width:${Math.min(100,100*(+d.atual||0)/(+d.total||1))}%"></span></div>
           ${quem.length?`<p>${quem.map(f=>esc(f.nome)+(f.celular?` · <a href="tel:${esc(f.celular)}">${esc(f.celular)}</a>`:'')).join('<br>')}</p>`:''}</div>`; }).join('')}
-      ${st.custom.map(c=>`<div class="item"><div class="topo"><b>${esc((c.indicador&&c.indicador.titulo)||c.nomeColunaIndicador)}</b></div>
+      ${(st.custom||[]).map(c=>`<div class="item"><div class="topo"><b>${esc((c.indicador&&c.indicador.titulo)||c.nomeColunaIndicador)}</b></div>
         <p>${(c.funcionarios||[]).map(f=>`${esc(f.nome)} — ${esc(f.totalHorasFuncionario)}`).join('<br>')||'ninguém'}</p></div>`).join('')}`; } },
   gCartao:{ titulo:'Cartão de funcionário',
     async carregar(st){ st.ini=st.ini||diasAtras(14); st.fim=st.fim||hojeStr();
@@ -1802,7 +1809,7 @@ const TELAS={
   gDiario:{ titulo:'Ponto diário',
     async carregar(st){ st.data=st.data||hojeStr(); st.dados=await secJson('GET',`/Batidas/${st.data}`); },
     render(st){ const l=(st.dados&&st.dados.lista)||[];
-      return `<div class="filtros" style="grid-template-columns:1fr auto;margin-bottom:12px">
+      return `<div class="filtros" style="margin-bottom:12px">
         <div class="field"><label>Dia</label><input type="date" id="f_dia" value="${st.data}"></div>
         <button class="btn sm" onclick="M.gDiario.data=$('#f_dia').value;recarregar('gDiario')">Buscar</button></div>
         ${carga(st)}${l.length?l.map(d=>linhaCartao(d,{comprovante:false})).join(''):vazio(st,'Ninguém no dia.')}`; } },

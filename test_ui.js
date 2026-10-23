@@ -929,6 +929,34 @@ const server = http.createServer((req,res)=>{
     await page.close();
   }
 
+  // ---- 12) celular estreito: nenhuma tela pode dar scroll lateral
+  {
+    const ctx = await browser.newContext({ viewport:{width:320,height:700}, isMobile:true, hasTouch:true });
+    const page = await ctx.newPage();
+    const errs=[]; page.on('pageerror',e=>errs.push(String(e)));
+    await page.addInitScript(({port})=>{
+      localStorage.setItem('pontoimp.v2',JSON.stringify({ gateway:'http://localhost:'+port+'/gwapi', cfg:{},
+        auth:{banco:'1',tipo:'0',usuario:'9',senha:'',token:'fake',lembrar:true}, func:{nome:'D'},
+        hist:{ts:0,dias:[]}, notificados:{}, ultimaSyncMs:Date.now() }));
+    },{port:PORT});
+    await page.clock.setFixedTime(HOJE);
+    await page.goto(`http://localhost:${PORT}/`);
+    await page.waitForTimeout(800);
+    await page.evaluate(()=>{ S.perfil={...S.perfil, funcionalidades:[0,1], assinaturaDigitalCartaoPontoHabilitada:true,
+      assinaturaDigitalGerentes:true, dadosPerfilFuncionario:{tipoPerfil:1,telasOcultar:[]}}; });
+    const largas=[];
+    const medir=async(nome)=>{ await page.waitForTimeout(350);
+      if(await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth)) largas.push(nome); };
+    for(const v of ['hoje','hist','cfg','mais']){ await page.evaluate(v=>go(v),v); await medir(v); }
+    for(const t of Object.keys(await page.evaluate(()=>Object.fromEntries(Object.keys(TELAS).map(k=>[k,1]))))){
+      const e=await page.evaluate(t=>{ try{ abrirTela(t); return null; }catch(x){ return t+': '+x.message; } },t);
+      if(e) errs.push(e);
+      await medir(t); }
+    check('nenhuma tela dá scroll lateral em 320px', largas.length===0 || (console.log('   largas:',largas), false));
+    check('telas abrem antes de os dados chegarem sem quebrar', errs.length===0 || (console.log('   errs:',errs), false));
+    await ctx.close();
+  }
+
   await browser.close(); server.close();
   console.log(fails? `\n${fails} FALHAS`:'\ntudo certo ✔');
   process.exit(fails?1:0);
