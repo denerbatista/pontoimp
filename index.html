@@ -750,6 +750,10 @@ function armarAlarmesNativos(){
   try{ AndroidAlarme.agendar(JSON.stringify(agendaDeHoje().concat(agendaFutura()))); return true; }
   catch(e){ return false; }
 }
+/* Tudo que muda o plano sem batida nova (meta de hoje, almoço, Ajustes) tem
+   que remarcar os avisos na hora: senão o push e o AlarmManager seguem tocando
+   no horário antigo até a próxima sincronização — que nem acontece offline. */
+function replanejar(){ save(); armarAlarmesNativos(); enviarAgenda(); }
 // versões antigas do APK não têm estes métodos: perguntar sem quebrar
 const pn=(m,padrao)=>{ try{ return (temPonteNativa()&&typeof AndroidAlarme[m]==='function')?AndroidAlarme[m]():padrao; }catch(e){ return padrao; } };
 /* Rede de segurança: mantém o processo vivo conferindo os horários, pra quando
@@ -2180,12 +2184,12 @@ function abrirPerguntaAlmoco(){
 }
 function fecharSheet(){ $('#sheetAlm').classList.add('hidden'); }
 function almocoPadrao(){ S.hoje.perguntaFeita=true; S.hoje.snoozeAte=null; S.hoje.almocoPrevisto=null;
-  save(); fecharSheet(); toast('Almoço no padrão — te aviso na hora.'); render(); }
+  replanejar(); fecharSheet(); toast('Almoço no padrão — te aviso na hora.'); render(); }
 function almocoSnooze(){ S.hoje.snoozeAte=nowMin()+15; S.hoje.perguntaFeita=false;
-  save(); fecharSheet(); toast('Ok — te pergunto de novo em 15 min.'); render(); }
+  replanejar(); fecharSheet(); toast('Ok — te pergunto de novo em 15 min.'); render(); }
 function almocoOutraHora(){
   const v=$('#almHora').value; if(!v){ toast('Escolhe um horário primeiro'); return; }
-  S.hoje.almocoPrevisto=v; S.hoje.perguntaFeita=true; S.hoje.snoozeAte=null; save(); fecharSheet();
+  S.hoje.almocoPrevisto=v; S.hoje.perguntaFeita=true; S.hoje.snoozeAte=null; replanejar(); fecharSheet();
   const plan=planejarDia(S.hoje,cfgHoje());
   toast(`Almoço às ${v} — volta ${plan.plano.voltaAlmoco}, saída ${plan.alvoSaida}.`); render();
 }
@@ -2354,8 +2358,8 @@ function viewHoje(){
     :'<p class="muted" style="margin:0">Nada agendado por agora. ✌️</p>'}</div>`));
   return wrap;
 }
-function removerMetaHoje(){ S.hoje.metaHoje=''; save(); toast('Meta removida — voltou pra saída que zera o dia.'); render(); }
-function salvarMetaHoje(){ S.hoje.metaHoje=$('#metaHoje').value||''; save();
+function removerMetaHoje(){ S.hoje.metaHoje=''; replanejar(); toast('Meta removida — voltou pra saída que zera o dia.'); render(); }
+function salvarMetaHoje(){ S.hoje.metaHoje=$('#metaHoje').value||''; replanejar();
   toast(S.hoje.metaHoje?('Meta de hoje: '+S.hoje.metaHoje):'Meta de hoje removida'); render(); }
 
 /* ---------- histórico: hoje sempre no topo + últimos 30 dias do Secullum ---------- */
@@ -2549,7 +2553,7 @@ function salvarCfg(){
   S.cfg.pollMin=Math.max(1,parseInt(v('c_poll'))||3);
   S.cfg.avisoAntes=Math.min(60,Math.max(0,parseInt(v('c_aviso'))??10));
   S.gateway=v('c_gw'); S.push=v('c_push');
-  save(); toast('✓ Ajustes salvos'); go('hoje'); sincronizar();
+  replanejar(); toast('✓ Ajustes salvos'); go('hoje'); sincronizar();
 }
 async function testarGateway(){
   const url=((($('#c_gw')&&$('#c_gw').value.trim())||gwUrl())).replace(/\/$/,'');

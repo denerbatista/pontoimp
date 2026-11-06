@@ -729,6 +729,30 @@ const server = http.createServer((req,res)=>{
     check('não pede permissão de notificação do navegador',
       await page.locator('#convite').isHidden());
 
+    // mudar a saída na tela ("Quero sair hoje às…") só re-renderizava: o
+    // AlarmManager seguia tocando no horário antigo até a próxima sincronização
+    {
+      const ultima=()=>JSON.parse(agendados[agendados.length-1]);
+      const volta=(ag)=>{ const e=ag.find(x=>/\|volta_\d+$/.test(x.chave)); return e&&e.ts; };
+      // no almoço (estágio 2) a meta mexe na volta: almoço encurta pra sair antes
+      await page.evaluate(()=>{ S.hoje.saidaAlmoco='08:30'; save(); armarAlarmesNativos(); render(); });
+      await page.waitForTimeout(150); // a ponte exposta é assíncrona
+      const tsAntes=volta(ultima()), n0=agendados.length;
+      await page.fill('#metaHoje','16:30');
+      await page.evaluate(()=>salvarMetaHoje()); await page.waitForTimeout(150);
+      const tsMeta=agendados.length>n0 && volta(ultima());
+      check('aplicar a meta remarca o alarme na hora', !!tsAntes && !!tsMeta && tsMeta<tsAntes);
+      const n1=agendados.length;
+      await page.evaluate(()=>removerMetaHoje()); await page.waitForTimeout(150);
+      check('remover a meta volta o alarme pro horário antigo', agendados.length>n1 && volta(ultima())===tsAntes);
+      await page.evaluate(()=>{ S.hoje.saidaAlmoco=null; save(); });
+      const n2=agendados.length;
+      await page.evaluate(()=>{ abrirPerguntaAlmoco(); $('#almHora').value='12:30'; almocoOutraHora(); });
+      await page.waitForTimeout(150);
+      check('mudar o almoço remarca os alarmes', agendados.length>n2
+        && ultima().some(x=>/\|alm_750$/.test(x.chave)));
+    }
+
     await page.click('#nav button[data-v="cfg"]');
     await page.waitForTimeout(250);
     const cfg = await page.textContent('#views');
